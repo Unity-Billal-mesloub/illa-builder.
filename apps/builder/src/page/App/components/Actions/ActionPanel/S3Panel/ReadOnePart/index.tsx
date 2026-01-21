@@ -1,20 +1,20 @@
+import {
+  ActionItem,
+  S3Action,
+  S3ActionTypeContent,
+  S3ReadOneContent,
+} from "@illa-public/public-types"
 import { FC, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
 import { CODE_LANG } from "@/components/CodeEditor/CodeMirror/extensions/interface"
 import { S3ActionPartProps } from "@/page/App/components/Actions/ActionPanel/S3Panel/interface"
 import { SingleTypeComponent } from "@/page/App/components/Actions/ActionPanel/SingleTypeComponent"
-import { InputEditor } from "@/page/App/components/InputEditor"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  ReadOneContent,
-  S3Action,
-  S3ActionTypeContent,
-  SelectOption,
-} from "@/redux/currentApp/action/s3Action"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
+import { SelectOption } from "../constants"
 
 export const ReadOnePart: FC<S3ActionPartProps> = (props) => {
   const { t } = useTranslation()
@@ -22,7 +22,7 @@ export const ReadOnePart: FC<S3ActionPartProps> = (props) => {
   const cachedAction = useSelector(getCachedAction) as ActionItem<
     S3Action<S3ActionTypeContent>
   >
-  const commandArgs = props.commandArgs as ReadOneContent
+  const commandArgs = props.commandArgs as S3ReadOneContent
   const isShowSignedURL = commandArgs.signedURL
 
   const handleValueChange = useCallback(
@@ -35,7 +35,7 @@ export const ReadOnePart: FC<S3ActionPartProps> = (props) => {
             commandArgs: {
               ...commandArgs,
               [name]: value,
-            } as ReadOneContent,
+            } as S3ReadOneContent,
           },
         }),
       )

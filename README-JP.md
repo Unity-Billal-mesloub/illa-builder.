@@ -1,60 +1,41 @@
-<div align="center">
-  <h2>Hacktoberfest 2023｜ILLA Cloud</h2>
-</div>
-
-AI エージェントまたは ILLA アプリを ILLA コミュニティに貢献し、ILLA にプル リクエストを送信すると、Hacktoberfest からデジタル リワード キットを、ILLA クラウドからスワッグを受け取る機会が得られます。
-
-<a href="https://www.illacloud.com/hacktoberfest2023"><img src="https://cdn.illacloud.com/official-website/img/hacktoberFest/Group%202979.png"></a>
 
 <div align="center">
-  <h3>もっと詳しく知る 👇</h3>
-  <a href="https://www.illacloud.com/hacktoberfest2023">
-    <img alt="Hacktoberfest2023|ILLA Cloud" src="https://cdn.illacloud.com/official-website/img/hacktoberFest/Hacktoberfest%20OW%20banner.png"/>
-  </a>
-</div>
-
----
-
-
-<div align="center">
-  <a href="https://cloud.illacloud.com/">
+  <a href="https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme">
     <img alt="ILLA Design Logo" width="120px" height="120px" src="https://github.com/illacloud/.github/blob/main/assets/images/illa-logo.svg"/>
   </a>
 </div>
 
-<h1 align="center"><a href="https://cloud.illacloud.com/">ILLA Builder</a></h1>
+<h1 align="center"><a href="https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme">ILLA Builder</a></h1>
 
 <p align="center">ILLA は、開発者が内部ツールを構築するための堅牢なオープン ソースのローコード プラットフォームです。 コンポーネントとアクションのILLAのライブラリを使用することで、開発者はツールの構築にかかる時間を大幅に節約できます。 </p>
 
 <div align="center">
-<a href="https://github.com/illacloud/illa-builder/blob/main/README.md">English</a> | <a href="https://github.com/illacloud/illa-builder/blob/main/README-CN.md">简体中文</a> | <a href="https://github.com/illacloud/illa-builder/blob/main/README-KR.md">한국어</a> | 日本語
+<a href="https://github.com/illacloud/illa-builder/blob/beta/README.md">English</a> | <a href="https://github.com/illacloud/illa-builder/blob/beta/README-CN.md">简体中文</a> | <a href="https://github.com/illacloud/illa-builder/blob/beta/README-DE.md">Deutsch</a> | 日本語
 </div>
+
 <br>
 <p align="center">
-<a href="https://cloud.illacloud.com/">
-  <img src="https://github.com/illacloud/.github/blob/main/assets/images/github-home.png">
+<a href="https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme">
+  <img width="800" alt="GitHub - Readme - jp" src="https://github.com/illacloud/illa-builder/assets/112603073/eeb65cb6-e307-4f16-9a7a-2fcb9d3a37a3">
 </a>
 </p>
 
-<p align="center">
-  <a href="https://discord.gg/illacloud"><img src="https://img.shields.io/badge/chat-Discord-7289DA?logo=discord" height=18></a>
-  <a href="https://twitter.com/illacloudHQ"><img src="https://img.shields.io/badge/Twitter-1DA1F2?logo=x&logoColor=white" height=18></a>
-  <a href="https://github.com/orgs/illacloud/discussions"><img src="https://img.shields.io/badge/discussions-GitHub-333333?logo=github" height=18></a>
-  <a title="Crowdin" target="_blank" href="https://crowdin.com/project/illa-builder"><img src="https://badges.crowdin.net/illa-builder/localized.svg"  height=18></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/illacloud/illa-builder" height=18></a>
-  <a href="./CONTRIBUTING.md"><img src="https://badgen.net/badge/PRs/Welcome/green?icon=storybook" height=18></a>
-</p>
-
+[![Discord](https://img.shields.io/badge/chat-Discord-7289DA?logo=discord)](https://discord.gg/illacloud)
+[![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?logo=x&logoColor=white)](https://twitter.com/illa_cloud)
+[![Discussions](https://img.shields.io/badge/discussions-GitHub-333333?logo=github)](https://github.com/orgs/illacloud/discussions)
+[![Crowdin](https://badges.crowdin.net/illa-builder/localized.svg)](https://crowdin.com/project/illa-builder)
+[![CI (Rolling and Humble)](https://github.com/illacloud/illa-builder/actions/workflows/build-docker.yml/badge.svg?query=branch%3Amain)](https://github.com/illacloud/illa-builder/actions/workflows/build-docker.yml?query=branch%3Amain)
+[![PR:s Welcome](https://img.shields.io/badge/PR:s-welcome-brightgreen.svg)](https://github.com/illacloud/illa-builder/pulls)
+[![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg?style=socialflat-square&)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
 ## 🚀始めましょう
-[ILLA Cloud](https://cloud.illacloud.com/) にサインアップしてログインするのが最も便利です。招待コードを入手するには、この [Google Form](https://forms.gle/XFRSUc3yFpzbCdcWA) に記入し、できるだけ多くの情報を提供してください。ご提出いただいた内容は、最大2営業日以内にレビューし、できるだけ早くご連絡いたします。
+[ILLA Cloud](https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme) にサインアップしてログインするのが最も便利です。招待コードを入手するには、この [Google Form](https://forms.gle/XFRSUc3yFpzbCdcWA) に記入し、できるだけ多くの情報を提供してください。ご提出いただいた内容は、最大2営業日以内にレビューし、できるだけ早くご連絡いたします。
 レビュープロセスを迅速化するために、[Discordコミュニティ](https://discord.gg/illacloud) に参加して、より迅速に招待コードを入手できるようにすることもできます。
 
 また、ILLAユーティリティを手動で（Docker、docker-compose、k8s）展開および自己ホストすることもできます。
 
 <p>
-  <a href="https://www.illacloud.com/en-US/docs/deploy-introduction"><img src="https://github.com/illacloud/.github/blob/main/assets/images/selfhost.png" height=120 />
-  <a href="https://cloud.illacloud.com/"><img src="https://raw.githubusercontent.com/illacloud/.github/main/assets/images/ILLA%20Cloud.png" height=120 />
+  <a href="https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme"><img src="https://raw.githubusercontent.com/illacloud/.github/main/assets/images/ILLA%20Cloud.png" height=120 />
 </p>
 
 
@@ -62,14 +43,13 @@ AI エージェントまたは ILLA アプリを ILLA コミュニティに貢�
 ## ✨ 特徴
 
 1. ⚽ **リアルタイム コラボレーション:** すべてをリアルタイムで一緒に作成できます。
-2. 🛠 **カスタム プラグイン:** カスタム プラグインを作成して、必要なことを行います。
-3. 🤖 **サポートの自動化:** すべてを接続して 5 秒で自動化します。
-4. 🖥 **自己ホスト型:** Docker と k8s をサポート
-5. 📝 **ページのサポート:** コンテンツが豊富で UI に適したツールを作成するための基盤。
-6. 🎨 **[ILLA Design](https://github.com/illacloud/illa-design) を利用:** コンポーネントによって想像力が制約されることはありません。
+2. 🤖 **サポートの自動化:** すべてを接続して 5 秒で自動化します。
+3. 🖥 **自己ホスト型:** Docker と k8s をサポート
+4. 📝 **ページのサポート:** コンテンツが豊富で UI に適したツールを作成するための基盤。
+5. 🎨 **[ILLA Design](https://github.com/illacloud/illa-design) を利用:** コンポーネントによって想像力が制約されることはありません。
 ## Self-hosted
     
-ILLA CLI を使用すると、ILLA Builder を想像よりも速く展開できます。 [ここをクリック](https://www.illacloud.com/docs/illa-cli) 詳細については。
+ILLA CLI を使用すると、ILLA Builder を想像よりも速く展開できます。 [ここをクリック](https://docs.illacloud.com/self-hosted-deployment) 詳細については。
 デプロイが正常に完了したら、電子メール アドレスで登録するか、次の情報でログインできます。
 <p align="left">Username (email): root</p>
 <p align="left">Password: password</p>
@@ -80,7 +60,7 @@ ILLA CLI を使用すると、ILLA Builder を想像よりも速く展開でき�
 
 #### 🎯 Step 1: Connect to your database
 <p align="center">
-  <a href="https://cloud.illacloud.com/">
+  <a href="https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme">
     <img src="https://github.com/illacloud/.github/blob/main/assets/images/sql.jpeg">
   </a>
 </p>
@@ -89,7 +69,7 @@ ILLA CLI を使用すると、ILLA Builder を想像よりも速く展開でき�
 コンポーネントをキャンバスにドラッグして、UI を構築します。 Illa Builder および Illa Design には、チャート、テーブル、フォームなど、多数のコンポーネントが用意されています。 コンポーネントが重なっている場合、それらの位置は自動的に調整されるため、レイアウト開発が容易かつ柔軟になります。
     
 <p align="center">
-  <a href="https://cloud.illacloud.com/">
+  <a href="https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme">
     <img src="https://github.com/illacloud/.github/blob/main/assets/images/edit-ui-with-components.gif">
   </a>
 </p>
@@ -97,7 +77,7 @@ ILLA CLI を使用すると、ILLA Builder を想像よりも速く展開でき�
 #### 🔌 ステップ 3: データに接続する
 GUI データ コネクタを介して MySQL または REST API に接続します。 また、近日中に 10 を超えるデータベースと API を追加する予定です。
 <p align="center">
-  <a href="https://cloud.illacloud.com/">
+  <a href="https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme">
     <img src="https://github.com/illacloud/.github/blob/main/assets/images/connect-your-data.gif">
   </a>
 </p>
@@ -105,7 +85,7 @@ GUI データ コネクタを介して MySQL または REST API に接続しま�
 #### 🚀 ステップ 4: アプリをデプロイする
 アプリをデプロイして自己ホストします。
 <p align="center">
-  <a href="https://cloud.illacloud.com/">
+  <a href="https://cloud.illacloud.com?utm_source=github&utm_medium=readme&utm_campaign=github-readme">
     <img src="https://github.com/illacloud/.github/blob/main/assets/images/deploy.gif">
   </a>
 </p>
@@ -124,15 +104,6 @@ ILLA コミュニティに参加して、アイデア、提案、質問を共有
 ## 📢 翻訳
 
 `apps/builder/src/i18n/locale/*` ディレクトリは Crowdin によって自動的に更新されます。貢献したい場合は、[公式翻訳ページ](https://crowdin.com/project/illa-builder) を参照してください。
-
-## 🔥 募集中
-
-情熱的でクリエイティブなチームをお探しですか? 以下の職種のエンジニアを積極的に採用しています。
-
-- フロントエンドエンジニア
-- Golang エンジニア
-
-お問い合わせ: hr@illasoft.com
 
 ## ライセンス
 

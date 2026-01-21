@@ -1,4 +1,4 @@
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
+import { ComponentTreeNode } from "@illa-public/public-types"
 import { TooltipWrapperProps } from "@/widgetLibrary/PublicSector/TooltipWrapper/interface"
 import { BaseWidgetProps } from "@/widgetLibrary/interface"
 
@@ -33,6 +33,10 @@ export interface CarouselProps {
   draggable?: boolean
   onClickItem?: (index: number) => void
   onChange?: (index: number) => void
+  sourceLoadErrorHandler: (
+    sourceURL: string | undefined,
+    widgetType: string,
+  ) => void
 }
 
 export interface CarouselWidgetProps
@@ -43,5 +47,5 @@ export interface CarouselWidgetProps
   dataSources?: Array<unknown>
   manualData?: CarouselSettings[]
   mappedData?: MappedCarouselData
-  componentNode: ComponentNode
+  componentNode: ComponentTreeNode
 }

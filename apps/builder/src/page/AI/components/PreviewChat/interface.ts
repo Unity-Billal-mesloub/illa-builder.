@@ -2,7 +2,8 @@ import {
   AI_AGENT_MODEL,
   AI_AGENT_TYPE,
   AgentAdvanceConfig,
-} from "@illa-public/market-agent"
+  KnowledgeFile,
+} from "@illa-public/public-types"
 import { Params } from "@illa-public/record-editor"
 
 export type EDIT_STATE = "EDIT" | "RUN"
@@ -33,6 +34,7 @@ export interface ChatMessage {
   threadID: string
   message: string
   sender: ChatSender
+  knowledgeFiles?: KnowledgeFile[]
 }
 
 export interface ChatSendRequestPayload {
@@ -46,6 +48,7 @@ export interface ChatSendRequestPayload {
 }
 
 export interface PreviewChatProps {
+  model: AI_AGENT_MODEL
   hasCreated: boolean
   editState: EDIT_STATE
   agentType: AI_AGENT_TYPE
@@ -56,9 +59,14 @@ export interface PreviewChatProps {
   blockInput: boolean
   isReceiving: boolean
   isRunning: boolean
+  isConnecting: boolean
   isMobile: boolean
   showShareDialog: boolean
   showContributeDialog: boolean
+  showEditPanel: boolean
+  setShowEditPanel?: (show: boolean) => void
   onShowShareDialog?: () => void
   onShowContributeDialog?: () => void
+  onClickCreateApp?: () => void
+  onClickStartRunning?: () => void
 }

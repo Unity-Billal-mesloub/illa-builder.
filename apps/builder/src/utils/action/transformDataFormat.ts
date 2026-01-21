@@ -1,28 +1,30 @@
-import { isNumber, isString } from "@illa-design/react"
-import { ActionType } from "@/redux/currentApp/action/actionState"
 import {
+  CouchDBActionStructParamsDataTransferType,
+  DynamoActionStructParamsDataTransferType,
+  GoogleSheetDataTypeTransform,
+  HuggingFaceBooleanTypes,
+  HuggingFaceBooleanValueMap,
+} from "@illa-public/public-configs"
+import {
+  ActionType,
   AirtableAction,
   AirtableActionConfigType,
   AirtableCreateRecord,
   AirtableDeleteMultipleRecords,
+  AirtableDeleteRecord,
   AirtableListRecord,
   AirtableUpdateMultipleRecords,
   AirtableUpdateRecord,
-} from "@/redux/currentApp/action/airtableAction"
-import { CouchDBActionStructParamsDataTransferType } from "@/redux/currentApp/action/couchDBAction"
-import { DynamoActionStructParamsDataTransferType } from "@/redux/currentApp/action/dynamoDBAction"
-import {
-  AuthActionTypeValue,
-  FirestoreActionTypeValue,
-  ServiceTypeValue,
-} from "@/redux/currentApp/action/firebaseAction"
-import { GoogleSheetDataTypeTransform } from "@/redux/currentApp/action/googleSheetsAction"
-import {
-  BooleanTypes,
-  BooleanValueMap,
-} from "@/redux/currentApp/action/huggingFaceAction"
-import { Params } from "@/redux/resource/restapiResource"
+  FirebaseAuthActionTypeValue,
+  FirebaseServiceTypeValue,
+  FirebaseStoreActionTypeValue,
+  ILLADriveAction,
+  ILLADriveActionTypeContent,
+} from "@illa-public/public-types"
+import { Params } from "@illa-public/public-types"
+import { isNumber, isString } from "@illa-design/react"
 import { isObject } from "@/utils/typeHelper"
+import { transformDriveData } from "./driveActions"
 
 const getAppwriteFilterValue = (value: string) => {
   const val = value.trim().replace(/^\[|\]$/g, "")
@@ -67,8 +69,8 @@ export const transformDataFormat = (
     case "firebase":
       const { service, operation } = contents
       if (
-        service === ServiceTypeValue.AUTH &&
-        operation === AuthActionTypeValue.LIST_USERS
+        service === FirebaseServiceTypeValue.AUTH &&
+        operation === FirebaseAuthActionTypeValue.LIST_USERS
       ) {
         const { number = "", ...others } = contents.options
         return {
@@ -80,9 +82,9 @@ export const transformDataFormat = (
         }
       }
       if (
-        service === ServiceTypeValue.FIRESTORE &&
-        (operation === FirestoreActionTypeValue.QUERY_FIREBASE ||
-          operation === FirestoreActionTypeValue.QUERY_COLLECTION_GROUP)
+        service === FirebaseServiceTypeValue.FIRESTORE &&
+        (operation === FirebaseStoreActionTypeValue.QUERY_FIREBASE ||
+          operation === FirebaseStoreActionTypeValue.QUERY_COLLECTION_GROUP)
       ) {
         const { limit = "", ...others } = contents.options
         return {
@@ -124,9 +126,10 @@ export const transformDataFormat = (
         return {
           key,
           value: currentValue
-            ? BooleanTypes.includes(key)
-              ? BooleanValueMap[currentValue as keyof typeof BooleanValueMap] ??
-                currentValue
+            ? HuggingFaceBooleanTypes.includes(key)
+              ? HuggingFaceBooleanValueMap[
+                  currentValue as keyof typeof HuggingFaceBooleanValueMap
+                ] ?? currentValue
               : parseFloat(currentValue)
             : "",
         }
@@ -231,6 +234,16 @@ export const transformDataFormat = (
               sort: listConfig.sort === "" ? [] : listConfig.sort,
             },
           }
+        case "delete":
+          const deleteConfig = contents.config as AirtableDeleteRecord
+          return {
+            ...contents,
+            config: {
+              ...deleteConfig,
+              recordID:
+                deleteConfig.recordID === "" ? "" : deleteConfig.recordID,
+            },
+          }
         case "create":
           const createConfig = contents.config as AirtableCreateRecord
           return {
@@ -277,16 +290,23 @@ export const transformDataFormat = (
     }
     case "aiagent": {
       return {
-        agentType: contents.virtualResource.agentType,
-        model: contents.virtualResource.model,
+        agentType: contents.virtualResource?.agentType ?? contents.agentType,
+        model: contents.virtualResource?.model ?? contents.model,
         input: contents.input,
         modelConfig: {
-          maxTokens: contents.virtualResource.modelConfig.maxTokens,
+          maxTokens: (
+            contents.virtualResource?.modelConfig ?? contents.modelConfig
+          ).maxTokens,
           stream: false,
         },
         variables: contents.variables,
         virtualResource: contents.virtualResource,
       }
+    }
+    case "illadrive": {
+      return transformDriveData(
+        contents as ILLADriveAction<ILLADriveActionTypeContent>,
+      )
     }
     default:
       return contents

@@ -6,7 +6,7 @@ export function applyMenuBrandContainerStyle(mode: MenuMode): SerializedStyles {
     display: inline-flex;
     flex-direction: row;
     align-items: center;
-    padding: ${mode === "horizontal" ? "0px" : "16px"} 24px;
+    padding: ${mode === "horizontal" ? "0px" : "16px"} 16px;
     padding-bottom: ${mode === "horizontal" ? "0px" : "8px"};
     margin-right: ${mode === "horizontal" ? "16px" : "0px"};
   `
@@ -18,6 +18,7 @@ export function applyMenuTitleStyle(mode: MenuMode): SerializedStyles {
     color: ${getColor("grayBlue", "02")};
     font-size: 14px;
     font-style: normal;
+    white-space: nowrap;
     font-weight: 500;
   `
 }

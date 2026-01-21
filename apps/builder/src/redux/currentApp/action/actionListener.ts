@@ -1,22 +1,17 @@
-import { AnyAction, Unsubscribe, isAnyOf } from "@reduxjs/toolkit"
-import { getIsILLAGuideMode } from "@/redux/config/configSelector"
+import { ActionContent, ActionItem } from "@illa-public/public-types"
+import { UnknownAction, Unsubscribe, isAnyOf } from "@reduxjs/toolkit"
+import {
+  getCachedAction,
+  getIsILLAGuideMode,
+} from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
 import { actionActions } from "@/redux/currentApp/action/actionSlice"
-import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
-import {
-  getActionExecutionResult,
-  getInDependenciesMap,
-  getRawTree,
-} from "@/redux/currentApp/executionTree/executionSelector"
-import { fetchUpdateAction } from "@/services/action"
+import { getActionExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
+import { fetchBatchUpdateAction } from "@/services/action"
 import { AppListenerEffectAPI, AppStartListening } from "@/store"
 import { registerActionPeriod } from "@/utils/action/runAction"
-import { changeDisplayNameHelper } from "@/utils/changeDisplayNameHelper"
-import {
-  ActionContent,
-  ActionItem,
-  UpdateActionSlicePropsPayload,
-} from "./actionState"
+import { mixedChangeDisplayNameHelper } from "@/utils/changeDisplayNameHelper"
+import { UpdateActionSlicePropsPayload } from "./actionState"
 
 async function handleAddActionItemEffect(
   action: ReturnType<typeof actionActions.addActionItemReducer>,
@@ -49,43 +44,61 @@ async function handleUpdateActionItem(
   }
 }
 
+async function handleBatchUpdateActionItem(
+  action: ReturnType<typeof actionActions.batchUpdateActionItemReducer>,
+  listenerApi: AppListenerEffectAPI,
+) {
+  const selectedAction = listenerApi.getState().config.selectedAction
+  const targetSelectedAction = action.payload.find(
+    (action) => action.actionID === selectedAction?.actionID,
+  )
+  if (targetSelectedAction) {
+    listenerApi.dispatch(
+      configActions.changeSelectedAction(targetSelectedAction),
+    )
+  }
+}
+
 const handleUpdateDisplayNameEffect = (
   action: ReturnType<typeof actionActions.updateActionDisplayNameReducer>,
   listenerApi: AppListenerEffectAPI,
 ) => {
   const { oldDisplayName, newDisplayName } = action.payload
-  const rootState = listenerApi.getState()
-  const independenciesMap = getInDependenciesMap(rootState)
-  const seeds = getRawTree(rootState)
-  const { updateActionSlice, updateWidgetSlice } = changeDisplayNameHelper(
-    independenciesMap,
-    seeds,
-    oldDisplayName,
-    newDisplayName,
-  )
-  listenerApi.dispatch(
-    componentsActions.batchUpdateMultiComponentSlicePropsReducer(
-      updateWidgetSlice,
-    ),
-  )
-  listenerApi.dispatch(
-    actionActions.batchUpdateMultiActionSlicePropsReducer(updateActionSlice),
-  )
+  mixedChangeDisplayNameHelper(listenerApi, oldDisplayName, newDisplayName)
 }
 
 const handleUpdateAsyncEffect = (
-  action: AnyAction,
+  action: UnknownAction,
   listenerApi: AppListenerEffectAPI,
 ) => {
   const rootState = listenerApi.getState()
   const currentSelectedID = rootState.config.selectedAction?.actionID
   const allChangedActions: ActionItem<ActionContent>[] = []
-  if (Array.isArray(action.payload)) {
-    const currentActionUpdateSlice: UpdateActionSlicePropsPayload =
-      action.payload.find(
-        (item: UpdateActionSlicePropsPayload) =>
-          item.actionID === currentSelectedID,
+  if (actionActions.updateActionDisplayNameReducer.match(action)) {
+    const { actionID } = action.payload
+    if (actionID === rootState.config.selectedAction?.actionID) {
+      const currentAction = rootState.currentApp.action.find(
+        (item) => item.actionID === actionID,
       )
+      if (!currentAction) return
+      const cachedAction = getCachedAction(listenerApi.getState())
+      listenerApi.dispatch(configActions.changeSelectedAction(currentAction))
+      if (!cachedAction) return
+      listenerApi.dispatch(
+        configActions.updateCachedAction({
+          ...cachedAction,
+          displayName: action.payload.newDisplayName,
+        }),
+      )
+      allChangedActions.push(currentAction)
+    }
+  } else if (
+    actionActions.batchUpdateMultiActionSlicePropsReducer.match(action)
+  ) {
+    const currentActionUpdateSlice = action.payload.find(
+      (item: UpdateActionSlicePropsPayload) =>
+        item.actionID === currentSelectedID,
+    )
     if (!currentActionUpdateSlice) return
     const currentActionID = currentActionUpdateSlice.actionID
     const currentAction = rootState.currentApp.action.find(
@@ -101,23 +114,11 @@ const handleUpdateAsyncEffect = (
         allChangedActions.push(cAction)
       }
     })
-  } else {
-    const { actionID } = action.payload
-    if (actionID === rootState.config.selectedAction?.actionID) {
-      const currentAction = rootState.currentApp.action.find(
-        (item) => item.actionID === actionID,
-      )
-      if (!currentAction) return
-      listenerApi.dispatch(configActions.changeSelectedAction(currentAction))
-      allChangedActions.push(currentAction)
-    }
   }
+
   const isGuideMode = getIsILLAGuideMode(rootState)
   if (allChangedActions.length && !isGuideMode) {
-    // TODO: it's vary hack,need BE provide new API
-    allChangedActions.forEach((action) => {
-      fetchUpdateAction(action)
-    })
+    fetchBatchUpdateAction(allChangedActions)
   }
 }
 
@@ -128,6 +129,10 @@ export function setupActionListeners(
     startListening({
       actionCreator: actionActions.updateActionItemReducer,
       effect: handleUpdateActionItem,
+    }),
+    startListening({
+      actionCreator: actionActions.batchUpdateActionItemReducer,
+      effect: handleBatchUpdateActionItem,
     }),
     startListening({
       actionCreator: actionActions.addActionItemReducer,

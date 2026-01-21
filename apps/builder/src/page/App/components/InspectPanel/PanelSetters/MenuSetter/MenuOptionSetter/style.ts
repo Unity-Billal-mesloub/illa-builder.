@@ -29,9 +29,14 @@ export const optionSubItemStyle = css`
   font-size: 14px;
   height: 24px;
   display: inline-flex;
-  color: ${getColor("techPurple", "01")};
+  color: ${getColor("techPurple", "03")};
   align-items: center;
   flex-direction: row;
+`
+
+export const setterSubMenuAllContainerStyle = css`
+  display: flex;
+  flex-direction: column;
 `
 
 export const setterSubMenuContainerStyle = css`

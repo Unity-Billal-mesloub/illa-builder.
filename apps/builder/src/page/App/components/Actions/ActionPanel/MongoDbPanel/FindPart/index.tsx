@@ -1,17 +1,17 @@
+import {
+  ActionItem,
+  MongoDbAction,
+  MongoDbActionTypeContent,
+  MongoDbFindContent,
+} from "@illa-public/public-types"
 import { FC, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
 import { CODE_LANG } from "@/components/CodeEditor/CodeMirror/extensions/interface"
 import { MongoDbActionPartProps } from "@/page/App/components/Actions/ActionPanel/MongoDbPanel/interface"
-import { InputEditor } from "@/page/App/components/InputEditor"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  FindContent,
-  MongoDbAction,
-  MongoDbActionTypeContent,
-} from "@/redux/currentApp/action/mongoDbAction"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
 
 export const FindPart: FC<MongoDbActionPartProps> = (props) => {
@@ -21,7 +21,7 @@ export const FindPart: FC<MongoDbActionPartProps> = (props) => {
   const cachedAction = useSelector(getCachedAction) as ActionItem<
     MongoDbAction<MongoDbActionTypeContent>
   >
-  const typeContent = props.typeContent as FindContent
+  const typeContent = props.typeContent as MongoDbFindContent
 
   const handleValueChange = useCallback(
     (name: string) => (value: string) => {
@@ -33,7 +33,7 @@ export const FindPart: FC<MongoDbActionPartProps> = (props) => {
             typeContent: {
               ...typeContent,
               [name]: value,
-            } as FindContent,
+            } as MongoDbFindContent,
           },
         }),
       )
@@ -51,7 +51,14 @@ export const FindPart: FC<MongoDbActionPartProps> = (props) => {
         value={typeContent.query}
         onChange={handleValueChange("query")}
         expectedType={VALIDATION_TYPES.STRING}
-        placeholder={'{"type":"cheese"}'}
+        placeholder={
+          "{\n" +
+          '  "type":"cheese",\n' +
+          '  "_id": {\n' +
+          '    "$oid":"646385ae462e929b7a3d86bc"\n' +
+          "  }\n" +
+          "}"
+        }
       />
       <InputEditor
         title={t("editor.action.panel.mongodb.projection")}
@@ -61,7 +68,13 @@ export const FindPart: FC<MongoDbActionPartProps> = (props) => {
         value={typeContent.projection}
         onChange={handleValueChange("projection")}
         expectedType={VALIDATION_TYPES.STRING}
-        placeholder={'{"_id":1} '}
+        placeholder={
+          "{ \n" +
+          '  "_id": {\n' +
+          '    "$oid":"646385ae462e929b7a3d86bc"\n' +
+          "  }\n" +
+          "}"
+        }
       />
       <InputEditor
         title={t("editor.action.panel.mongodb.sort_by")}
@@ -71,7 +84,13 @@ export const FindPart: FC<MongoDbActionPartProps> = (props) => {
         value={typeContent.sortBy}
         onChange={handleValueChange("sortBy")}
         expectedType={VALIDATION_TYPES.STRING}
-        placeholder={'{"_id":1} '}
+        placeholder={
+          "{ \n" +
+          '  "_id": {\n' +
+          '    "$oid":"646385ae462e929b7a3d86bc"\n' +
+          "  }\n" +
+          "}"
+        }
       />
       <InputEditor
         title={t("editor.action.panel.mongodb.limit")}

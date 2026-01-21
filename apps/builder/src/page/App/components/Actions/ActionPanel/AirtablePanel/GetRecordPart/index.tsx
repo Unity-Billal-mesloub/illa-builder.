@@ -1,3 +1,9 @@
+import {
+  AirtableAction,
+  AirtableActionConfigType,
+  AirtableGetRecord,
+} from "@illa-public/public-types"
+import { ActionItem } from "@illa-public/public-types"
 import { FC } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
@@ -5,15 +11,9 @@ import {
   CODE_LANG,
   CODE_TYPE,
 } from "@/components/CodeEditor/CodeMirror/extensions/interface"
-import { InputEditor } from "@/page/App/components/InputEditor"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  AirtableAction,
-  AirtableActionConfigType,
-  AirtableGetRecord,
-} from "@/redux/currentApp/action/airtableAction"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
 
 export const GetRecordPart: FC = () => {

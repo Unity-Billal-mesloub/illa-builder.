@@ -1,4 +1,6 @@
-import { cloneDeep, get, isFunction, isNumber, set, toPath } from "lodash"
+import { convertPathToString } from "@illa-public/dynamic-string"
+import { klona } from "klona"
+import { get, isFunction, isNumber, set, toPath } from "lodash-es"
 import { FC, Suspense, memo, useCallback, useMemo } from "react"
 import { useDispatch } from "react-redux"
 import { Skeleton } from "@illa-design/react"
@@ -9,7 +11,6 @@ import { executionActions } from "@/redux/currentApp/executionTree/executionSlic
 import { evaluateDynamicString } from "@/utils/evaluateDynamicString"
 import { runEventHandler } from "@/utils/eventHandlerHelper"
 import { ILLAEditorRuntimePropsCollectorInstance } from "@/utils/executionTreeHelper/runtimePropsCollector"
-import { convertPathToString } from "@/utils/executionTreeHelper/utils"
 import { isObject } from "@/utils/typeHelper"
 import { TransformWidgetWrapperWithJsonProps } from "@/widgetLibrary/PublicSector/TransformWidgetWrapper/interface"
 import { applyWrapperStylesStyle } from "@/widgetLibrary/PublicSector/TransformWidgetWrapper/style"
@@ -114,9 +115,16 @@ export const TransformWidgetWrapperWithJson: FC<TransformWidgetWrapperWithJsonPr
       ) => {
         const originEvents = get(componentNode.props, path, []) as any[]
         const dynamicPaths = get(componentNode.props, "$dynamicAttrPaths", [])
-        const needRunEvents = cloneDeep(originEvents).filter((originEvent) => {
-          return originEvent.eventType === eventType
-        })
+        const needRunEvents = klona(originEvents)
+          .filter((originEvent) => {
+            return originEvent.eventType === eventType
+          })
+          .map((originEvent) => {
+            return {
+              ...originEvent,
+              originEnable: originEvent.enabled,
+            }
+          })
         const finalContext =
           ILLAEditorRuntimePropsCollectorInstance.getCurrentPageCalcContext(
             otherCalcContext,
@@ -147,18 +155,18 @@ export const TransformWidgetWrapperWithJson: FC<TransformWidgetWrapperWithJsonPr
             ? formatPath(path)
             : convertPathToString(toPath(path).slice(1))
 
-          try {
-            const dynamicString = get(needRunEvents, realPath, "")
-            if (dynamicString) {
+          const dynamicString = get(needRunEvents, realPath, "")
+          if (dynamicString) {
+            try {
               const calcValue = evaluateDynamicString(
                 "",
                 dynamicString,
                 finalContext,
               )
               set(needRunEvents, realPath, calcValue)
+            } catch {
+              set(needRunEvents, realPath, undefined)
             }
-          } catch (e) {
-            console.log(e)
           }
         })
         needRunEvents.forEach((scriptObj: any) => {
@@ -176,9 +184,9 @@ export const TransformWidgetWrapperWithJson: FC<TransformWidgetWrapperWithJsonPr
         )
         dynamicPaths?.forEach((path: string) => {
           const realPath = convertPathToString(toPath(path).slice(2))
-          try {
-            const dynamicString = get(needRunEvents, realPath, "")
-            if (dynamicString) {
+          const dynamicString = get(needRunEvents, realPath, "")
+          if (dynamicString) {
+            try {
               const calcValue = evaluateDynamicString(
                 "",
                 dynamicString,
@@ -189,9 +197,9 @@ export const TransformWidgetWrapperWithJson: FC<TransformWidgetWrapperWithJsonPr
               } else {
                 set(needRunEvents, realPath, calcValue)
               }
+            } catch {
+              set(needRunEvents, realPath, undefined)
             }
-          } catch (e) {
-            console.log(e)
           }
         })
         needRunEvents.forEach((scriptObj: any) => {

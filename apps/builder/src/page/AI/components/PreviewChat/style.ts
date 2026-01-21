@@ -41,6 +41,12 @@ export const previewTitleContainerStyle = css`
   border-bottom: 1px solid ${getColor("grayBlue", "08")};
 `
 
+export const menuIconStyle = css`
+  cursor: pointer;
+  margin-right: 16px;
+  flex: none;
+`
+
 export const previewTitleTextStyle = css`
   color: ${getColor("grayBlue", "02")};
   font-size: 18px;
@@ -68,6 +74,7 @@ export const chatContainerStyle = css`
   overflow-y: auto;
   height: 100%;
   padding-bottom: 110px;
+  width: 100%;
 `
 
 export const mobileInputElementStyle = css`
@@ -171,8 +178,27 @@ export const stopIconStyle = css`
   cursor: pointer;
 `
 
+export const mobileInputContainerStyle = css`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`
 export const mobileInputStyle = css`
   display: flex;
   flex-direction: row;
   align-items: center;
+`
+
+export const operationStyle = (showKnowledge: boolean) => css`
+  display: flex;
+  justify-content: ${showKnowledge ? "space-between" : "flex-end"};
+  align-items: flex-end;
+  align-self: stretch;
+`
+
+export const sendButtonStyle = css`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
 `

@@ -1,8 +1,8 @@
+import { ActionContent, ActionItem } from "@illa-public/public-types"
 import { CaseReducer, PayloadAction } from "@reduxjs/toolkit"
-import { cloneDeep, set } from "lodash"
+import { klona } from "klona/json"
+import { set } from "lodash-es"
 import {
-  ActionContent,
-  ActionItem,
   RemoveActionItemReducerPayload,
   UpdateActionDisplayNamePayload,
   UpdateActionSlicePropsPayload,
@@ -24,6 +24,13 @@ export const addActionItemReducer: CaseReducer<
 > = (state, action) => {
   state.push(action.payload)
   return state
+}
+
+export const batchAddActionItemReducer: CaseReducer<
+  ActionItem<ActionContent>[],
+  PayloadAction<ActionItem<ActionContent>[]>
+> = (state, action) => {
+  return state.concat(action.payload)
 }
 
 export const updateActionItemReducer: CaseReducer<
@@ -67,7 +74,7 @@ export const batchUpdateMultiActionSlicePropsReducer: CaseReducer<
     })
     if (actionIndex === -1) return
     const action = state[actionIndex]
-    const clonedAction = cloneDeep(action)
+    const clonedAction = klona(action)
     Object.keys(propsSlice).forEach((path) => {
       const newValue = propsSlice[path]
       set(clonedAction, path, newValue)
@@ -97,4 +104,34 @@ export const resetActionReducer: CaseReducer<
   PayloadAction
 > = () => {
   return actionInitialState
+}
+
+export const batchUpdateResourceID: CaseReducer<
+  ActionItem<ActionContent>[],
+  PayloadAction<Record<string, { actionID: string; resourceID: string }>>
+> = (state, action) => {
+  const payload = action.payload
+  Object.values(payload).forEach(({ actionID, resourceID }) => {
+    const index = state.findIndex((item: ActionItem<ActionContent>) => {
+      return item.actionID === actionID
+    })
+    if (index != -1) {
+      state[index].resourceID = resourceID
+    }
+  })
+}
+
+export const batchUpdateActionItemReducer: CaseReducer<
+  ActionItem<ActionContent>[],
+  PayloadAction<ActionItem<ActionContent>[]>
+> = (state, action) => {
+  action.payload.forEach((item) => {
+    const index = state.findIndex((actionItem) => {
+      return actionItem.actionID === item.actionID
+    })
+    if (index != -1) {
+      state[index] = item
+    }
+  })
+  return state
 }

@@ -1,17 +1,17 @@
+import {
+  ActionItem,
+  MongoDbAction,
+  MongoDbActionTypeContent,
+  MongoDbCountContent,
+} from "@illa-public/public-types"
 import { FC, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
 import { CODE_LANG } from "@/components/CodeEditor/CodeMirror/extensions/interface"
 import { MongoDbActionPartProps } from "@/page/App/components/Actions/ActionPanel/MongoDbPanel/interface"
-import { InputEditor } from "@/page/App/components/InputEditor"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  CountContent,
-  MongoDbAction,
-  MongoDbActionTypeContent,
-} from "@/redux/currentApp/action/mongoDbAction"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
 
 export const CountPart: FC<MongoDbActionPartProps> = (props) => {
@@ -22,7 +22,7 @@ export const CountPart: FC<MongoDbActionPartProps> = (props) => {
     MongoDbAction<MongoDbActionTypeContent>
   >
 
-  const typeContent = props.typeContent as CountContent
+  const typeContent = props.typeContent as MongoDbCountContent
 
   const handleValueChange = useCallback(
     (value: string) => {
@@ -34,7 +34,7 @@ export const CountPart: FC<MongoDbActionPartProps> = (props) => {
             typeContent: {
               ...typeContent,
               query: value,
-            } as CountContent,
+            } as MongoDbCountContent,
           },
         }),
       )
@@ -48,7 +48,14 @@ export const CountPart: FC<MongoDbActionPartProps> = (props) => {
       lineNumbers
       style={{ height: "88px" }}
       mode={CODE_LANG.JAVASCRIPT}
-      placeholder={'{"type":"cheese"}'}
+      placeholder={
+        "{\n" +
+        '  "type":"cheese",\n' +
+        '  "_id": {\n' +
+        '    "$oid":"646385ae462e929b7a3d86bc"\n' +
+        "  }\n" +
+        "}"
+      }
       value={typeContent.query}
       onChange={handleValueChange}
       expectedType={VALIDATION_TYPES.STRING}

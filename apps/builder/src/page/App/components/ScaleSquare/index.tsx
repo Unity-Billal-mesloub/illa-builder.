@@ -6,8 +6,7 @@ import {
 } from "@/redux/config/configSelector"
 import { TransformWidgetWrapper } from "@/widgetLibrary/PublicSector/TransformWidgetWrapper"
 import { AutoHeightWithLimitedContainer } from "./components/AutoHeightWithLimitedContainer"
-import { DragContainer } from "./components/DragContainer"
-import { ResizingContainer } from "./components/ResizingContainer"
+import { ResizingAndDragContainer } from "./components/ResizingAndDragContainer"
 import WrapperContainer from "./components/WrapperContainer"
 import { ScaleSquareProps } from "./interface"
 import { useGetRealShapeAndPosition } from "./utils/getRealShapeAndPosition"
@@ -36,7 +35,7 @@ const ScaleSquare: FC<ScaleSquareProps> = (props) => {
   }, [displayName, selectedComponents])
 
   return (
-    <ResizingContainer
+    <ResizingAndDragContainer
       displayName={displayName}
       unitW={unitW}
       widgetHeight={height}
@@ -44,38 +43,24 @@ const ScaleSquare: FC<ScaleSquareProps> = (props) => {
       widgetTop={canDrag ? top : 0}
       widgetLeft={canDrag ? left : 0}
       parentNodeDisplayName={parentNodeDisplayName}
+      widgetType={widgetType}
+      columnNumber={columnNumber}
     >
-      <DragContainer
-        displayName={displayName}
-        parentNodeDisplayName={parentNodeDisplayName}
-        canDrag={canDrag}
-        unitWidth={unitW}
-        columnNumber={columnNumber}
-      >
-        <WrapperContainer
+      <WrapperContainer displayName={displayName} widgetHeight={height}>
+        <TransformWidgetWrapper
           displayName={displayName}
-          parentNodeDisplayName={parentNodeDisplayName}
-          widgetHeight={height}
-          widgetWidth={width}
           widgetType={widgetType}
-          widgetTop={top}
+          parentNodeDisplayName={parentNodeDisplayName}
           columnNumber={columnNumber}
-        >
-          <TransformWidgetWrapper
-            displayName={displayName}
-            widgetType={widgetType}
-            parentNodeDisplayName={parentNodeDisplayName}
-            columnNumber={columnNumber}
-          />
-        </WrapperContainer>
-      </DragContainer>
+        />
+      </WrapperContainer>
       {isEditMode && selectedComponents?.length === 1 && isSelected && (
         <AutoHeightWithLimitedContainer
           containerHeight={width}
           displayName={displayName}
         />
       )}
-    </ResizingContainer>
+    </ResizingAndDragContainer>
   )
 }
 

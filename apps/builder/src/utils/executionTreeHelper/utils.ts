@@ -1,38 +1,27 @@
-import { toPath } from "lodash"
-import { extractIdentifiersFromCode } from "@/utils/ast/ast"
-import { isInt, isObject } from "@/utils/typeHelper"
+import {
+  convertPathToString,
+  extractIdentifierInfoFromCode,
+} from "@illa-public/dynamic-string"
+import { toPath } from "lodash-es"
+import { isObject } from "@/utils/typeHelper"
 
 const IMMEDIATE_PARENT_REGEX = /^(.*)(\..*|\[.*\])$/
 
-export const convertPathToString = (attrPath: string[] | number[]) => {
-  let string = ""
-  attrPath.forEach((segment) => {
-    if (isInt(segment)) {
-      string = string + "[" + segment + "]"
-    } else {
-      if (string.length !== 0) {
-        string = string + "."
-      }
-      string = string + segment
-    }
-  })
-  return string
-}
-
 export const extractReferencesFromScript = (script: string): string[] => {
-  const references: Set<string> = new Set<string>()
-  const identifiers = extractIdentifiersFromCode(script)
-  identifiers.forEach((identifier: string) => {
-    references.add(identifier)
+  const newReference = new Set<string>()
+  const { references } = extractIdentifierInfoFromCode(script)
+
+  references.forEach((identifier: string) => {
+    newReference.add(identifier)
     const subPaths = toPath(identifier)
     let current = ""
     while (subPaths.length > 1) {
       current = convertPathToString(subPaths)
-      references.add(current)
+      newReference.add(current)
       subPaths.pop()
     }
   })
-  return Array.from(references)
+  return Array.from(newReference)
 }
 
 export function getDisplayNameAndPropertyPath(fullPath: string): {
@@ -103,6 +92,19 @@ export const removeIgnoredKeys = (result: Record<string, unknown>) => {
   )
 }
 
+export const removeParentPath = (paths: string[]) => {
+  const dotPaths = paths.map((path) => toPath(path).join("."))
+
+  const filteredPaths = dotPaths.filter((path, index, array) => {
+    return !array.some((otherPath, otherIndex) => {
+      if (index === otherIndex) return false
+      return otherPath.startsWith(`${path}.`)
+    })
+  })
+
+  return filteredPaths.map((path) => convertPathToString(toPath(path)))
+}
+
 export const removeWidgetOrActionMethods = (
   result: Record<string, unknown>,
 ) => {
@@ -133,4 +135,26 @@ export const removeWidgetOrActionMethods = (
     },
     {},
   )
+}
+
+export function getObjectPaths(obj: Record<string, unknown>, currentPath = "") {
+  let paths: string[] = []
+
+  if (typeof obj === "object" && obj !== null) {
+    Object.keys(obj).forEach((key) => {
+      const value = obj[key]
+      const newPath = Array.isArray(obj)
+        ? `${currentPath}.${key}`
+        : `${currentPath ? currentPath + "." : ""}${key}`
+      if (typeof value === "object" && value !== null) {
+        paths = paths.concat(
+          getObjectPaths(value as Record<string, unknown>, newPath),
+        )
+      } else {
+        paths.push(newPath)
+      }
+    })
+  }
+
+  return paths.map((path) => (path.startsWith(".") ? path.substr(1) : path))
 }

@@ -1,28 +1,28 @@
+import { MysqlLikeAction } from "@illa-public/public-types"
 import ButtonHighlightIcon from "@/assets/widgetCover/button-highlight.svg"
 import InputHighlightIcon from "@/assets/widgetCover/input-highlight.svg"
 import TableHighlightIcon from "@/assets/widgetCover/table-highlight.svg"
 import { GUIDE_COMPONENTS } from "@/config/guide/index"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { MysqlLikeAction } from "@/redux/currentApp/action/mysqlLikeAction"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
 import { guideActions } from "@/redux/guide/guideSlice"
 import store from "@/store"
 import { DisplayNameGenerator } from "@/utils/generators/generateDisplayName"
-import { WidgetConfigMap } from "@/widgetLibrary/widgetBuilder"
+import { widgetBuilder } from "@/widgetLibrary/widgetBuilder"
 
 export const SELECT_WIDGET_ITEM = {
   INPUT_WIDGET: {
     highlightIcon: InputHighlightIcon,
-    ...WidgetConfigMap["INPUT_WIDGET"].config,
+    ...widgetBuilder("INPUT_WIDGET").config,
   },
   BUTTON_WIDGET: {
     highlightIcon: ButtonHighlightIcon,
-    ...WidgetConfigMap["BUTTON_WIDGET"].config,
+    ...widgetBuilder("BUTTON_WIDGET").config,
   },
-  TABLE_WIDGET: {
+  DATA_GRID_WIDGET: {
     highlightIcon: TableHighlightIcon,
-    ...WidgetConfigMap["TABLE_WIDGET"].config,
+    ...widgetBuilder("DATA_GRID_WIDGET").config,
   },
 }
 
@@ -75,7 +75,7 @@ export const GUIDE_STEP = [
     titleKey: "",
     descKey: "",
     selector: "",
-    widgetType: "TABLE_WIDGET",
+    widgetType: "DATA_GRID_WIDGET",
     reduxAction: "components/addComponentReducer",
   },
   {
@@ -120,11 +120,11 @@ export const GUIDE_STEP = [
     titleKey: "editor.tutorial.panel.onboarding_app.display_data_title",
     descKey:
       "editor.tutorial.panel.onboarding_app.display_data_description_select",
-    selector: `[data-displayname="table1"]`,
-    displayName: `table1`,
+    selector: `[data-displayname="dataGrid1"]`,
+    displayName: `dataGrid1`,
     reduxAction: "config/updateSelectedComponent",
     doItForMe: () => {
-      store.dispatch(configActions.updateSelectedComponent(["table1"]))
+      store.dispatch(configActions.updateSelectedComponent(["dataGrid1"]))
     },
   },
   {
@@ -132,11 +132,11 @@ export const GUIDE_STEP = [
     titleKey: "editor.tutorial.panel.onboarding_app.display_data_title",
     descKey:
       "editor.tutorial.panel.onboarding_app.display_data_description_modify",
-    selector: "table-data-source",
+    selector: "dataGrid-data-source",
     doItForMe: () => {
       store.dispatch(
         componentsActions.updateComponentPropsReducer({
-          displayName: "table1",
+          displayName: "dataGrid1",
           updateSlice: {
             dataSourceJS: "{{postgresql1.data}}",
           },

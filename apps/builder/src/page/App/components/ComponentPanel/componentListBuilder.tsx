@@ -11,6 +11,9 @@ import {
   widgetBuilder,
 } from "@/widgetLibrary/widgetBuilder"
 
+export const DEPRECATED_WIDGETS = ["CHART", "TABLE_WIDGET"]
+export const PREMIUM_WIDGETS = ["DRIVE_PICKER_WIDGET"]
+
 export type SessionType = keyof typeof sessionTypeMapSessionNameKey
 
 export const sessionTypeMapSessionNameKey = {
@@ -26,7 +29,7 @@ export const sessionTypeMapSessionNameKey = {
 }
 
 const COMMONLY_WIDGET = new Set([
-  "TABLE_WIDGET",
+  "DATA_GRID_WIDGET",
   "TEXT_WIDGET",
   "BUTTON_WIDGET",
   "INPUT_WIDGET",
@@ -68,6 +71,7 @@ const translateChildren = (componentConfigs: WidgetConfig[]) => {
       widgetName,
       icon: item.icon,
       displayName,
+      isPremiumWidget: PREMIUM_WIDGETS.includes(type),
     }
     if (COMMONLY_WIDGET.has(type as string)) {
       sessionConfigs.COMMON.push(childrenConfig)
@@ -78,7 +82,9 @@ const translateChildren = (componentConfigs: WidgetConfig[]) => {
 }
 
 export const buildComponentConfigs = () => {
-  return WidgetTypeList.filter((type) => type !== "CHART").map((item) => {
+  return WidgetTypeList.filter(
+    (type) => !DEPRECATED_WIDGETS.includes(type),
+  ).map((item) => {
     return getListItemConfig(item) as WidgetConfig
   }) as WidgetConfig[]
 }

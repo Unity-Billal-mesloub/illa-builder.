@@ -1,4 +1,5 @@
-import { ReactComponent as RadioIcon } from "@/assets/radius-icon.svg"
+import { isCloudVersion } from "@illa-public/utils"
+import RadioIcon from "@/assets/radius-icon.svg?react"
 import i18n from "@/i18n/config"
 import { PanelConfig } from "@/page/App/components/InspectPanel/interface"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
@@ -44,14 +45,30 @@ export const CAROUSEL_PANEL_CONFIG: PanelConfig[] = [
             setterType: "INPUT_SETTER",
           },
           {
-            id: `${baseWidgetName}-options-url`,
+            id: `${baseWidgetName}-options-ur-self-host`,
+            attrName: "url",
+            expectedType: VALIDATION_TYPES.STRING,
             labelName: i18n.t(
               "editor.inspect.setter_content.image_list.config.image_url",
             ),
             labelDesc: i18n.t("editor.inspect.setter_tips.img_url_array"),
-            attrName: "url",
+            isSetterSingleRow: true,
+            bindAttrName: [],
+            shown: () => !isCloudVersion,
             setterType: "INPUT_SETTER",
+          },
+          {
+            id: `${baseWidgetName}-options-ur-cloud-version`,
+            attrName: "url",
             expectedType: VALIDATION_TYPES.STRING,
+            labelName: i18n.t(
+              "editor.inspect.setter_content.image_list.config.image_url",
+            ),
+            labelDesc: i18n.t("editor.inspect.setter_tips.img_url_array"),
+            isSetterSingleRow: true,
+            bindAttrName: [],
+            shown: () => isCloudVersion,
+            setterType: "DRIVE_SOURCE_GROUP_SETTER",
           },
           {
             id: `${baseWidgetName}-options-alt`,

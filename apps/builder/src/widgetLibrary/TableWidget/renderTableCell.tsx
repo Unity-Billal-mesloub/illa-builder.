@@ -1,3 +1,4 @@
+import { convertPathToString } from "@illa-public/dynamic-string"
 import { CellContext } from "@tanstack/table-core"
 import { FC, SyntheticEvent } from "react"
 import {
@@ -8,9 +9,9 @@ import {
   Rate,
   Tag,
   getColor,
+  getSpecialThemeColor,
 } from "@illa-design/react"
 import { ILLAMarkdown } from "@/components/ILLAMarkdown"
-import { convertPathToString } from "@/utils/executionTreeHelper/utils"
 import { getIcon } from "@/widgetLibrary/IconWidget/utils"
 import {
   ColumnItemShape,
@@ -107,8 +108,8 @@ const getTagColor = (color: string, rowIndex: number, index: number) => {
   return color === "auto"
     ? tagDefaultColor[(rowIndex + index) % tagDefaultColor.length]
     : tagColorSchemeOptions.includes(color)
-    ? color
-    : getColor(color, "03")
+      ? color
+      : getSpecialThemeColor(color)
 }
 
 export const RenderTableTag: FC<{

@@ -1,3 +1,14 @@
+import {
+  HuggingFaceInputInitial,
+  HuggingFacePairsBodyInitital,
+} from "@illa-public/public-configs"
+import {
+  ActionItem,
+  HuggingFaceAction,
+  HuggingFaceBodyContent,
+  HuggingFaceParametesType,
+} from "@illa-public/public-types"
+import { Params } from "@illa-public/public-types"
 import { TextLink } from "@illa-public/text-link"
 import { Namespace, TFunction } from "i18next"
 import { FC, useCallback } from "react"
@@ -7,9 +18,7 @@ import { Select, SelectValue } from "@illa-design/react"
 import { CodeEditor } from "@/components/CodeEditor"
 import { CODE_LANG } from "@/components/CodeEditor/CodeMirror/extensions/interface"
 import { RecordEditor } from "@/components/RecordEditor"
-import { ActionEventHandler } from "@/page/App/components/Actions/ActionPanel/ActionEventHandler"
 import { HuggingFaceCommonPanelProps } from "@/page/App/components/Actions/ActionPanel/HuggingFaceCommonPanel/interface"
-import { ResourceChoose } from "@/page/App/components/Actions/ActionPanel/ResourceChoose"
 import {
   bodyChooserStyle,
   bodyEditorContainerStyle,
@@ -19,29 +28,15 @@ import {
 } from "@/page/App/components/Actions/ActionPanel/RestApiPanel/BodyEditor/style"
 import { SingleTypeComponent } from "@/page/App/components/Actions/ActionPanel/SingleTypeComponent"
 import { TransformerComponent } from "@/page/App/components/Actions/ActionPanel/TransformerComponent"
-import { InputEditor } from "@/page/App/components/InputEditor"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import {
   getCachedAction,
   getSelectedAction,
 } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  HuggingFaceAction,
-  HuggingFaceBodyContent,
-  HuggingFaceParametesType,
-  InputInitial,
-  PairsBodyInitital,
-  ParametersTypeMap,
-  TextRawBody,
-} from "@/redux/currentApp/action/huggingFaceAction"
-import { Params } from "@/redux/resource/restapiResource"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
-import {
-  actionItemContainer,
-  restapiPanelContainerStyle,
-  textCodeEditorStyle,
-} from "./style"
+import { ParametersTypeMap } from "./constants"
+import { actionItemContainer, textCodeEditorStyle } from "./style"
 
 const getDetailedParameters = ({
   t,
@@ -214,7 +209,10 @@ export const HuggingFaceCommonPanel: FC<HuggingFaceCommonPanelProps> = (
 
   const handleParameterChange = useCallback(
     (value?: SelectValue) => {
-      let newBody = value === "pairs" ? PairsBodyInitital : InputInitial
+      let newBody =
+        value === "pairs"
+          ? HuggingFacePairsBodyInitital
+          : HuggingFaceInputInitial
       if (
         selectedAction.resourceID === cachedAction.resourceID &&
         selectedAction.content?.inputs?.type === value
@@ -299,133 +297,127 @@ export const HuggingFaceCommonPanel: FC<HuggingFaceCommonPanelProps> = (
   )
 
   return (
-    <div css={restapiPanelContainerStyle}>
-      <ResourceChoose />
-      <div css={actionItemContainer}>
-        {!withoutModel && (
-          <InputEditor
-            title={t("editor.action.panel.hugging_face.mode_id")}
-            value={content.modelID ?? ""}
-            onChange={handleValueChange("modelID")}
-            expectedType={VALIDATION_TYPES.STRING}
-            tips={
-              <Trans
-                i18nKey="editor.action.panel.hugging_face.tips.mode_id"
-                t={t}
-                components={[
-                  <TextLink
-                    key="editor.action.panel.hugging_face.tips.mode_id"
-                    onClick={() => {
-                      handleURLClick("https://huggingface.co/models")
-                    }}
-                  />,
-                ]}
-              />
-            }
-          />
-        )}
-        <div css={bodyEditorContainerStyle}>
-          <span css={bodyLabelStyle}>
-            {t("editor.action.panel.hugging_face.parameter")}
-          </span>
-          <div css={bodyChooserStyle}>
-            <div css={bodySelectorStyle}>
-              <Select
-                colorScheme="techPurple"
-                showSearch={true}
-                defaultValue={content?.inputs?.type || "text"}
-                value={content?.inputs?.type || "text"}
-                w="100%"
-                placeholder={t(
-                  "editor.action.panel.firebase.placeholder.select_an_action",
-                )}
-                onChange={handleParameterChange}
-                options={ParametersTypeMap}
+    <div css={actionItemContainer}>
+      {!withoutModel && (
+        <InputEditor
+          title={t("editor.action.panel.hugging_face.mode_id")}
+          value={content.modelID ?? ""}
+          onChange={handleValueChange("modelID")}
+          expectedType={VALIDATION_TYPES.STRING}
+          tips={
+            <Trans
+              i18nKey="editor.action.panel.hugging_face.tips.mode_id"
+              t={t}
+              components={[
+                <TextLink
+                  key="editor.action.panel.hugging_face.tips.mode_id"
+                  onClick={() => {
+                    handleURLClick("https://huggingface.co/models")
+                  }}
+                />,
+              ]}
+            />
+          }
+        />
+      )}
+      <div css={bodyEditorContainerStyle}>
+        <span css={bodyLabelStyle}>
+          {t("editor.action.panel.hugging_face.parameter")}
+        </span>
+        <div css={bodyChooserStyle}>
+          <div css={bodySelectorStyle}>
+            <Select
+              colorScheme="techPurple"
+              showSearch={true}
+              defaultValue={content?.inputs?.type || "text"}
+              value={content?.inputs?.type || "text"}
+              w="100%"
+              placeholder={t(
+                "editor.action.panel.firebase.placeholder.select_an_action",
+              )}
+              onChange={handleParameterChange}
+              options={ParametersTypeMap}
+            />
+          </div>
+          {currentParameterType === "pairs" && (
+            <RecordEditor
+              label=""
+              records={
+                (content.inputs.content as Params[]) ?? [{ key: "", value: "" }]
+              }
+              onChangeKey={handleOnChangeKey}
+              onChangeValue={handleOnChangeValue}
+              onDelete={handleOnDeleteKey}
+              onAdd={handleOnAddKeys}
+              valueInputType={VALIDATION_TYPES.ANY}
+            />
+          )}
+          {(currentParameterType === "binary" ||
+            currentParameterType === "json") && (
+            <div css={codeEditorStyle}>
+              <CodeEditor
+                key={currentParameterType}
+                lang={CODE_LANG.JAVASCRIPT}
+                showLineNumbers
+                value={(content.inputs.content as string) ?? ""}
+                expectValueType={VALIDATION_TYPES.STRING}
+                height="88px"
+                placeholder={
+                  currentParameterType === "binary"
+                    ? t("editor.action.panel.hugging_face.placeholder.binary")
+                    : t("editor.action.panel.hugging_face.placeholder.json")
+                }
+                onChange={handleInputsValueChange}
               />
             </div>
-            {currentParameterType === "pairs" && (
-              <RecordEditor
-                label=""
-                records={
-                  (content.inputs.content as Params[]) ?? [
-                    { key: "", value: "" },
-                  ]
-                }
-                onChangeKey={handleOnChangeKey}
-                onChangeValue={handleOnChangeValue}
-                onDelete={handleOnDeleteKey}
-                onAdd={handleOnAddKeys}
-                valueInputType={VALIDATION_TYPES.ANY}
+          )}
+          {currentParameterType === "text" && (
+            <div css={textCodeEditorStyle}>
+              <CodeEditor
+                lang={CODE_LANG.JAVASCRIPT}
+                value={(content?.inputs.content ?? "") as string}
+                onChange={handleInputsValueChange}
+                expectValueType={VALIDATION_TYPES.STRING}
+                placeholder={t(
+                  "editor.action.panel.hugging_face.placeholder.text",
+                )}
               />
-            )}
-            {(currentParameterType === "binary" ||
-              currentParameterType === "json") && (
-              <div css={codeEditorStyle}>
-                <CodeEditor
-                  key={currentParameterType}
-                  lang={CODE_LANG.JAVASCRIPT}
-                  showLineNumbers
-                  value={(content.inputs.content as string) ?? ""}
-                  expectValueType={VALIDATION_TYPES.STRING}
-                  height="88px"
-                  placeholder={
-                    currentParameterType === "binary"
-                      ? t("editor.action.panel.hugging_face.placeholder.binary")
-                      : t("editor.action.panel.hugging_face.placeholder.json")
-                  }
-                  onChange={handleInputsValueChange}
-                />
-              </div>
-            )}
-            {currentParameterType === "text" && (
-              <div css={textCodeEditorStyle}>
-                <CodeEditor
-                  lang={CODE_LANG.JAVASCRIPT}
-                  value={(content?.inputs.content ?? "") as TextRawBody}
-                  onChange={handleInputsValueChange}
-                  expectValueType={VALIDATION_TYPES.STRING}
-                  placeholder={t(
-                    "editor.action.panel.hugging_face.placeholder.text",
-                  )}
-                />
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-        {currentParameterType !== "binary" && (
-          <SingleTypeComponent
-            componentType="checkbox"
-            value={content.withDetailParams ?? false}
-            checkoutTitle={t(
-              "editor.action.panel.hugging_face.use_detail_parameters",
-            )}
-            onBooleanValueChange={handleValueChange("withDetailParams")}
-            tips={
-              <Trans
-                i18nKey="editor.action.panel.hugging_face.tips.use_detail_parameters"
-                t={t}
-                components={[
-                  <TextLink
-                    key="editor.action.panel.hugging_face.tips.use_detail_parameters"
-                    onClick={() => {
-                      handleURLClick(
-                        "https://huggingface.co/docs/api-inference/detailed_parameters",
-                      )
-                    }}
-                  />,
-                ]}
-              />
-            }
-          />
-        )}
-        {content.withDetailParams && (
-          <>
-            {getDetailedParameters({ t, content, handleParametersValueChange })}
-          </>
-        )}
-        <TransformerComponent />
       </div>
-      <ActionEventHandler />
+      {currentParameterType !== "binary" && (
+        <SingleTypeComponent
+          componentType="checkbox"
+          value={content.withDetailParams ?? false}
+          checkoutTitle={t(
+            "editor.action.panel.hugging_face.use_detail_parameters",
+          )}
+          onBooleanValueChange={handleValueChange("withDetailParams")}
+          tips={
+            <Trans
+              i18nKey="editor.action.panel.hugging_face.tips.use_detail_parameters"
+              t={t}
+              components={[
+                <TextLink
+                  key="editor.action.panel.hugging_face.tips.use_detail_parameters"
+                  onClick={() => {
+                    handleURLClick(
+                      "https://huggingface.co/docs/api-inference/detailed_parameters",
+                    )
+                  }}
+                />,
+              ]}
+            />
+          }
+        />
+      )}
+      {content.withDetailParams && (
+        <>
+          {getDetailedParameters({ t, content, handleParametersValueChange })}
+        </>
+      )}
+      <TransformerComponent />
     </div>
   )
 }

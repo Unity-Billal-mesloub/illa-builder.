@@ -1,8 +1,18 @@
+import {
+  GoogleSheetsActionInitial,
+  GoogleSheetsActionInitialMaps,
+} from "@illa-public/public-configs"
+import {
+  ActionItem,
+  GoogleSheetsAction,
+  GoogleSheetsActionOpts,
+  GoogleSheetsActionType,
+} from "@illa-public/public-types"
+import { Params } from "@illa-public/public-types"
 import { FC, useCallback, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
 import { SelectOptionObject, SelectValue } from "@illa-design/react"
-import { ActionEventHandler } from "@/page/App/components/Actions/ActionPanel/ActionEventHandler"
 import { AppendSpreadsheetSubPanel } from "@/page/App/components/Actions/ActionPanel/GoogleSheetsPanel/AppendSpreadsheetSubPanel"
 import { BulkUpdateSpreadsheetSubPanel } from "@/page/App/components/Actions/ActionPanel/GoogleSheetsPanel/BulkUpdateSpreadsheetSubPanel"
 import { CopySpreadsheetSubPanel } from "@/page/App/components/Actions/ActionPanel/GoogleSheetsPanel/CopySpreadSheetSubPanel"
@@ -12,27 +22,14 @@ import { GetSpreadsheetSubPanel } from "@/page/App/components/Actions/ActionPane
 import { ReadSpreadsheetSubPanel } from "@/page/App/components/Actions/ActionPanel/GoogleSheetsPanel/ReadSpreadsheetSubPanel"
 import { UpdateSpreadsheetSubPanel } from "@/page/App/components/Actions/ActionPanel/GoogleSheetsPanel/UpdateSpreadsheetSubPanel"
 import { GoogleSheetsActionTypesOptions } from "@/page/App/components/Actions/ActionPanel/GoogleSheetsPanel/values"
-import { ResourceChoose } from "@/page/App/components/Actions/ActionPanel/ResourceChoose"
 import { SingleTypeComponent } from "@/page/App/components/Actions/ActionPanel/SingleTypeComponent"
 import { TransformerComponent } from "@/page/App/components/Actions/ActionPanel/TransformerComponent"
-import {
-  actionItemContainer,
-  panelContainerStyle,
-} from "@/page/App/components/Actions/ActionPanel/style"
+import { actionItemContainer } from "@/page/App/components/Actions/ActionPanel/style"
 import {
   getCachedAction,
   getSelectedAction,
 } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  GoogleSheetsAction,
-  GoogleSheetsActionInitial,
-  GoogleSheetsActionInitialMaps,
-  GoogleSheetsActionOpts,
-  GoogleSheetsActionType,
-} from "@/redux/currentApp/action/googleSheetsAction"
-import { Params } from "@/redux/resource/restapiResource"
 import { fetchResourceMeta } from "@/services/resource"
 
 const SubPanelMap: Record<GoogleSheetsActionType, any> = {
@@ -123,26 +120,22 @@ const GoogleSheetsPanel: FC = () => {
   const SubPanel = SubPanelMap[content.method]
 
   return (
-    <div css={panelContainerStyle}>
-      <ResourceChoose />
-      <div css={actionItemContainer}>
-        <SingleTypeComponent
-          title={t("editor.action.form.label.gs.action_type")}
-          componentType="select"
-          value={content.method}
-          options={GoogleSheetsActionTypesOptions}
-          onSelectedValueChange={handleSelectValueChange}
+    <div css={actionItemContainer}>
+      <SingleTypeComponent
+        title={t("editor.action.form.label.gs.action_type")}
+        componentType="select"
+        value={content.method}
+        options={GoogleSheetsActionTypesOptions}
+        onSelectedValueChange={handleSelectValueChange}
+      />
+      {SubPanel && (
+        <SubPanel
+          opts={content.opts}
+          onChange={handleValueChange}
+          spreadsheetsOption={spreadsheetsOption}
         />
-        {SubPanel && (
-          <SubPanel
-            opts={content.opts}
-            onChange={handleValueChange}
-            spreadsheetsOption={spreadsheetsOption}
-          />
-        )}
-        <TransformerComponent />
-      </div>
-      <ActionEventHandler />
+      )}
+      <TransformerComponent />
     </div>
   )
 }

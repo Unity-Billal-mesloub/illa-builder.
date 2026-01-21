@@ -1,18 +1,19 @@
+import {
+  ActionItem,
+  S3Action,
+  S3ActionTypeContent,
+  S3UploadContent,
+} from "@illa-public/public-types"
 import { FC, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
 import { CODE_LANG } from "@/components/CodeEditor/CodeMirror/extensions/interface"
 import { S3ActionPartProps } from "@/page/App/components/Actions/ActionPanel/S3Panel/interface"
-import { InputEditor } from "@/page/App/components/InputEditor"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  S3Action,
-  S3ActionTypeContent,
-  UploadContent,
-} from "@/redux/currentApp/action/s3Action"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
+import ContentTypeSelect from "../components/ContentTypeSelect"
 
 export const UploadPart: FC<S3ActionPartProps> = (props) => {
   const { t } = useTranslation()
@@ -20,9 +21,9 @@ export const UploadPart: FC<S3ActionPartProps> = (props) => {
   const cachedAction = useSelector(getCachedAction) as ActionItem<
     S3Action<S3ActionTypeContent>
   >
-  const commandArgs = props.commandArgs as UploadContent
+  const commandArgs = props.commandArgs as S3UploadContent
   const handleValueChange = useCallback(
-    (name: string) => (value: string) => {
+    (name: string) => (value: string | boolean) => {
       dispatch(
         configActions.updateCachedAction({
           ...cachedAction,
@@ -31,7 +32,7 @@ export const UploadPart: FC<S3ActionPartProps> = (props) => {
             commandArgs: {
               ...commandArgs,
               [name]: value,
-            } as UploadContent,
+            } as S3UploadContent,
           },
         }),
       )
@@ -48,12 +49,10 @@ export const UploadPart: FC<S3ActionPartProps> = (props) => {
         onChange={handleValueChange("bucketName")}
         expectedType={VALIDATION_TYPES.STRING}
       />
-      <InputEditor
-        title={t("editor.action.panel.s3.content_type")}
-        mode={CODE_LANG.JAVASCRIPT}
+      <ContentTypeSelect
         value={commandArgs.contentType}
-        onChange={handleValueChange("contentType")}
-        expectedType={VALIDATION_TYPES.STRING}
+        onChange={handleValueChange}
+        fx={commandArgs.fx}
       />
       <InputEditor
         title={t("editor.action.panel.s3.upload_object_name")}

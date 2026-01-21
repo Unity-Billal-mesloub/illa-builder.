@@ -6,10 +6,10 @@ import {
   VerticalEndIcon,
   VerticalStartIcon,
 } from "@illa-design/react"
-import { ReactComponent as BarChartIcon } from "@/assets/chart/bar-chart.svg"
-import { ReactComponent as LineChartIcon } from "@/assets/chart/line-chart.svg"
-import { ReactComponent as ScatterPlotIcon } from "@/assets/chart/scatter-plot.svg"
-import { ReactComponent as RadioIcon } from "@/assets/radius-icon.svg"
+import BarChartIcon from "@/assets/chart/bar-chart.svg?react"
+import LineChartIcon from "@/assets/chart/line-chart.svg?react"
+import ScatterPlotIcon from "@/assets/chart/scatter-plot.svg?react"
+import RadioIcon from "@/assets/radius-icon.svg?react"
 import i18n from "@/i18n/config"
 import {
   chartTypeIconCss,
@@ -488,7 +488,7 @@ export const CHART_PANEL_CONFIG: PanelConfig[] = [
             attrName: "shadow",
             setterType: "SHADOW_SELECT_SETTER",
             useCustomLayout: true,
-            defaultValue: "small",
+            defaultValue: "none",
           },
         ],
       },

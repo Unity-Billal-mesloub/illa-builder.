@@ -5,7 +5,7 @@ import { DragBar } from "@/page/App/components/Actions/DragBar"
 import { ErrorItem } from "@/page/App/components/Debugger/components/ErrorItem"
 import { isOpenDebugger } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { getExecutionDebuggerData } from "@/redux/currentApp/executionTree/executionSelector"
+import { getExecutionError } from "@/redux/currentApp/executionTree/executionSelector"
 import {
   applyDebuggerStyle,
   containerStyle,
@@ -18,7 +18,7 @@ const DebuggerDefaultHeight = 300
 export const Debugger: FC<HTMLAttributes<HTMLDivElement>> = (props) => {
   const dispatch = useDispatch()
   const panelRef = useRef<HTMLDivElement>(null)
-  const debuggerData = useSelector(getExecutionDebuggerData)
+  const debuggerData = useSelector(getExecutionError)
   const debuggerVisible = useSelector(isOpenDebugger)
 
   const handleClickDebuggerIcon = useCallback(() => {
@@ -41,12 +41,14 @@ export const Debugger: FC<HTMLAttributes<HTMLDivElement>> = (props) => {
         <div css={errorContentStyle}>
           {Object.keys(debuggerData)?.map((name, index) => {
             const error = debuggerData[name]
-            if (isArray(error)) {
+
+            if (isArray(error) && error.length > 0) {
               return error?.map((item) => {
                 return <ErrorItem key={index} pathName={name} item={item} />
               })
+            } else {
+              return null
             }
-            return <ErrorItem key={name} pathName={name} item={error} />
           })}
         </div>
       </div>

@@ -2,7 +2,7 @@ import { Resizable, ResizeCallback, ResizeStartCallback } from "re-resizable"
 import { FC, useCallback, useEffect, useMemo, useState } from "react"
 import { useDispatch } from "react-redux"
 import { UNIT_HEIGHT } from "@/page/App/components/DotPanel/constant/canvas"
-import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
+import { configActions } from "@/redux/config/configSlice"
 import { BaseChat } from "@/widgetLibrary/ChatWidget/components/baseChat"
 import { ReplyTo } from "@/widgetLibrary/ChatWidget/components/replyTo"
 import {
@@ -19,7 +19,7 @@ import {
   addOrDelLoading,
   formatEventOptions,
 } from "@/widgetLibrary/ChatWidget/utils"
-import { RenderChildrenCanvas } from "@/widgetLibrary/PublicSector/RenderChildrenCanvas"
+import RenderChildrenCanvas from "@/widgetLibrary/PublicSector/RenderChildrenCanvas"
 import { TooltipWrapper } from "@/widgetLibrary/PublicSector/TooltipWrapper"
 import { emptyMessage } from "./constants"
 
@@ -72,7 +72,9 @@ export const ChatWidget: FC<ChatWidgetProps> = (props) => {
   const handleResizeStart: ResizeStartCallback = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    dispatch(executionActions.setResizingNodeIDsReducer([displayName]))
+    dispatch(
+      configActions.setResizingNodeIDsReducer([`${displayName}-resize-footer`]),
+    )
   }
 
   const handleOnResizeStop: ResizeCallback = useCallback(
@@ -81,7 +83,7 @@ export const ChatWidget: FC<ChatWidgetProps> = (props) => {
       handleUpdateOriginalDSLMultiAttr({
         footerHeight: footerHeight + height,
       })
-      dispatch(executionActions.setResizingNodeIDsReducer([]))
+      dispatch(configActions.setResizingNodeIDsReducer([]))
     },
     [dispatch, footerHeight, handleUpdateOriginalDSLMultiAttr],
   )
@@ -210,7 +212,7 @@ export const ChatWidget: FC<ChatWidgetProps> = (props) => {
             <div css={resizeLineStyle} />
             <div css={footerStyle}>
               <RenderChildrenCanvas
-                currentComponentNode={childrenNode[0]}
+                displayName={childrenNode[0]}
                 columnNumber={columnNumber}
                 handleUpdateHeight={() => {}}
               />

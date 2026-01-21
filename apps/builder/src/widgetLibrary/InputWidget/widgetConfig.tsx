@@ -1,4 +1,4 @@
-import { ReactComponent as TextInputWidgetIcon } from "@/assets/widgetCover/textInput.svg"
+import TextInputWidgetIcon from "@/assets/widgetCover/textInput.svg?react"
 import i18n from "@/i18n/config"
 import { RESIZE_DIRECTION, WidgetConfig } from "@/widgetLibrary/interface"
 
@@ -14,7 +14,8 @@ export const INPUT_WIDGET_CONFIG: WidgetConfig = {
   resizeDirection: RESIZE_DIRECTION.HORIZONTAL,
   version: 0,
   defaults: {
-    value: "",
+    value: undefined,
+    defaultValue: "",
     label: "Label",
     labelAlign: "left",
     labelPosition: "left",

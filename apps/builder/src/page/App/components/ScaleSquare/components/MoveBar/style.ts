@@ -10,11 +10,8 @@ export const applyMoveBarWrapperStyle = (
   maxWidth: number,
   minWidth: number,
   isError: boolean,
-  selected: boolean,
   isLikeProductionMode: boolean,
   topPosition: number,
-  hasEditors: boolean,
-  isMouseHover: boolean,
 ) => {
   let borderRadiusStyle = css`
     border-radius: 4px 4px 0 0;
@@ -22,7 +19,7 @@ export const applyMoveBarWrapperStyle = (
 
   const backgroundColorStyle = isError
     ? globalColor(`--${illaPrefix}-red-03`)
-    : globalColor(`--${illaPrefix}-techPurple-01`)
+    : globalColor(`--${illaPrefix}-techPurple-03`)
   return css`
     height: ${MOVE_BAR_HEIGHT}px;
     padding: 1px 4px 1px 0;
@@ -37,10 +34,7 @@ export const applyMoveBarWrapperStyle = (
     color: #fff;
     max-width: ${maxWidth}px;
     min-width: ${minWidth}px;
-    visibility: ${!isLikeProductionMode &&
-    (selected || hasEditors || isMouseHover)
-      ? "visible"
-      : "hidden"};
+    visibility: ${!isLikeProductionMode ? "visible" : "hidden"};
     z-index: 100;
     cursor: move;
   `

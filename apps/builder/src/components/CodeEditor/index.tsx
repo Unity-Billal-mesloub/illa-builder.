@@ -1,7 +1,11 @@
-import { debounce } from "lodash"
+import {
+  getStringSnippets,
+  isDynamicStringSnippet,
+} from "@illa-public/dynamic-string"
+import { debounce } from "lodash-es"
 import { FC, useCallback, useMemo, useRef, useState } from "react"
 import { useSelector } from "react-redux"
-import { ReactComponent as OpenWindowIcon } from "@/assets/public/openWindow.svg"
+import OpenWindowIcon from "@/assets/public/openWindow.svg?react"
 import { ILLACodeMirrorCore } from "@/components/CodeEditor/CodeMirror/core"
 import {
   CODE_TYPE,
@@ -22,8 +26,6 @@ import {
 import { RootState } from "@/store"
 import { LIMIT_MEMORY, estimateMemoryUsage } from "@/utils/calculateMemoryUsage"
 import { evaluateDynamicString } from "@/utils/evaluateDynamicString"
-import { getStringSnippets } from "@/utils/evaluateDynamicString/dynamicConverter"
-import { isDynamicStringSnippet } from "@/utils/evaluateDynamicString/utils"
 import {
   removeIgnoredKeys,
   removeWidgetOrActionMethods,

@@ -1,4 +1,5 @@
-import { get, isEqual, set } from "lodash"
+import { ComponentMapNode } from "@illa-public/public-types"
+import { get, isEqual, set } from "lodash-es"
 import { Resizable, ResizeCallback, ResizeStartCallback } from "re-resizable"
 import {
   FC,
@@ -13,7 +14,7 @@ import { useDrop } from "react-dnd"
 import { useDispatch, useSelector } from "react-redux"
 import useMeasure from "react-use-measure"
 import { useMessage } from "@illa-design/react"
-import { ReactComponent as ResizeBar } from "@/assets/resizeBar.svg"
+import ResizeBar from "@/assets/resizeBar.svg?react"
 import { DropResultInfo } from "@/page/App/components/DotPanel/components/Canvas/interface"
 import { UNIT_HEIGHT } from "@/page/App/components/DotPanel/constant/canvas"
 import { DragInfo } from "@/page/App/components/ScaleSquare/components/DragContainer/interface"
@@ -22,14 +23,14 @@ import {
   applyXDirectionDashedLineStyle,
 } from "@/page/App/components/ScaleSquare/style"
 import { getIsILLAEditMode } from "@/redux/config/configSelector"
+import { configActions } from "@/redux/config/configSlice"
+import { getComponentMap } from "@/redux/currentApp/components/componentsSelector"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
 import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
-import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
 import { evaluateDynamicString } from "@/utils/evaluateDynamicString"
 import { ILLAEditorRuntimePropsCollectorInstance } from "@/utils/executionTreeHelper/runtimePropsCollector"
 import { isObject } from "@/utils/typeHelper"
-import { RenderChildrenCanvas } from "../PublicSector/RenderChildrenCanvas"
+import RenderChildrenCanvas from "../PublicSector/RenderChildrenCanvas"
 import { FormWidgetProps } from "./interface"
 import {
   formBodyStyle,
@@ -47,10 +48,12 @@ import {
 } from "./widgetConfig"
 
 function getLikeInputChildrenNode(
-  componentNode: ComponentNode,
-  componentNodeResult: ComponentNode[],
+  componentNodeDisplayName: string,
+  componentNodeResult: ComponentMapNode[],
+  components: Record<string, ComponentMapNode>,
   hasForm: boolean,
 ) {
+  const componentNode = components[componentNodeDisplayName]
   if (
     (componentNode.containerType !== "EDITOR_DOT_PANEL" &&
       FORM_CAN_BIND_WIDGET_TYPE.has(componentNode.type)) ||
@@ -58,45 +61,36 @@ function getLikeInputChildrenNode(
   ) {
     componentNodeResult.push(componentNode)
     if (Array.isArray(componentNode.childrenNode)) {
-      componentNode.childrenNode.forEach((node) => {
-        getLikeInputChildrenNode(node, componentNodeResult, hasForm)
+      componentNode.childrenNode.forEach((childDisplayName) => {
+        getLikeInputChildrenNode(
+          childDisplayName,
+          componentNodeResult,
+          components,
+          hasForm,
+        )
       })
     }
   } else {
     if (Array.isArray(componentNode.childrenNode)) {
-      componentNode.childrenNode.forEach((node) => {
-        getLikeInputChildrenNode(node, componentNodeResult, hasForm)
+      componentNode.childrenNode.forEach((childDisplayName) => {
+        getLikeInputChildrenNode(
+          childDisplayName,
+          componentNodeResult,
+          components,
+          hasForm,
+        )
       })
     }
   }
 }
 
-// function getAllChildrenNode(
-//   componentNode: ComponentNode,
-//   displayNames: string[],
-// ) {
-//   if (componentNode.containerType !== "EDITOR_DOT_PANEL") {
-//     displayNames.push(componentNode.displayName)
-//     if (Array.isArray(componentNode.childrenNode)) {
-//       componentNode.childrenNode.forEach((node) => {
-//         getAllChildrenNode(node, displayNames)
-//       })
-//     }
-//   } else {
-//     if (Array.isArray(componentNode.childrenNode)) {
-//       componentNode.childrenNode.forEach((node) => {
-//         getAllChildrenNode(node, displayNames)
-//       })
-//     }
-//   }
-// }
 interface DragCollection {
   isDraggingActive: boolean
 }
 
 export const FormWidget: FC<FormWidgetProps> = (props) => {
   const {
-    childrenNode,
+    childrenNode: childrenNodeDisplayNames,
     showFooter,
     showHeader,
     headerHeight,
@@ -109,6 +103,7 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
     columnNumber,
     formData: propsFormData,
     dynamicHeight = "fixed",
+    padding,
     handleUpdateOriginalDSLMultiAttr,
     updateComponentRuntimeProps,
     deleteComponentRuntimeProps,
@@ -125,28 +120,25 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
   const [isMouseHover, setIsMouseHover] = useState(false)
   const isEditMode = useSelector(getIsILLAEditMode)
   const executionResult = useSelector(getExecutionResult)
+  const components = useSelector(getComponentMap)
 
   const dispatch = useDispatch()
 
-  const allLikeInputWithFormChildrenNode = useMemo(() => {
-    let componentNodeResult: ComponentNode[] = []
-    childrenNode.forEach((node) => {
-      getLikeInputChildrenNode(node, componentNodeResult, true)
-    })
-    return componentNodeResult
-  }, [childrenNode])
-
   const allLikeInputWithFormChildrenNodeDisplayName = useMemo(() => {
-    return allLikeInputWithFormChildrenNode.map((node) => node.displayName)
-  }, [allLikeInputWithFormChildrenNode])
+    let componentNodeResult: ComponentMapNode[] = []
+    childrenNodeDisplayNames.forEach((node) => {
+      getLikeInputChildrenNode(node, componentNodeResult, components, true)
+    })
+    return componentNodeResult.map((node) => node.displayName)
+  }, [childrenNodeDisplayNames, components])
 
   const allLikeInputChildrenNode = useMemo(() => {
-    let componentNodeResult: ComponentNode[] = []
-    childrenNode.forEach((node) => {
-      getLikeInputChildrenNode(node, componentNodeResult, false)
+    let componentNodeResult: ComponentMapNode[] = []
+    childrenNodeDisplayNames.forEach((node) => {
+      getLikeInputChildrenNode(node, componentNodeResult, components, false)
     })
     return componentNodeResult
-  }, [childrenNode])
+  }, [childrenNodeDisplayNames, components])
 
   const allLikeInputChildrenNodeDisplayName = useMemo(() => {
     return allLikeInputChildrenNode.map((node) => node.displayName)
@@ -215,7 +207,7 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
     prevDisabled.current = disabled
   }, [
     disabled,
-    childrenNode,
+    childrenNodeDisplayNames,
     allLikeInputWithFormChildrenNodeDisplayName,
     dispatch,
   ])
@@ -389,42 +381,6 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
 
   const canResizeCanvas = dynamicHeight !== "fixed"
 
-  const renderHeader = useMemo(() => {
-    const headerComponentNode = childrenNode[0]
-    return (
-      <RenderChildrenCanvas
-        currentComponentNode={headerComponentNode}
-        columnNumber={columnNumber}
-        handleUpdateHeight={handleUpdateHeight}
-        canResizeCanvas={canResizeCanvas}
-      />
-    )
-  }, [canResizeCanvas, childrenNode, columnNumber, handleUpdateHeight])
-
-  const renderBody = useMemo(() => {
-    const bodyComponentNode = childrenNode[1]
-    return (
-      <RenderChildrenCanvas
-        currentComponentNode={bodyComponentNode}
-        columnNumber={columnNumber}
-        handleUpdateHeight={handleUpdateHeight}
-        canResizeCanvas={canResizeCanvas}
-      />
-    )
-  }, [canResizeCanvas, childrenNode, columnNumber, handleUpdateHeight])
-
-  const renderFooter = useMemo(() => {
-    const footerComponentNode = childrenNode[2]
-    return (
-      <RenderChildrenCanvas
-        currentComponentNode={footerComponentNode}
-        columnNumber={columnNumber}
-        handleUpdateHeight={handleUpdateHeight}
-        canResizeCanvas={canResizeCanvas}
-      />
-    )
-  }, [canResizeCanvas, childrenNode, columnNumber, handleUpdateHeight])
-
   const resizeTopHandler = useMemo(() => {
     return {
       bottom: (
@@ -448,7 +404,11 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
   const handleResizeStart: ResizeStartCallback = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    dispatch(executionActions.setResizingNodeIDsReducer([displayName]))
+    dispatch(
+      configActions.setResizingNodeIDsReducer([
+        `${displayName}-resize-form-header`,
+      ]),
+    )
   }
 
   const handleOnResizeTopStop: ResizeCallback = useCallback(
@@ -463,7 +423,7 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
       handleUpdateOriginalDSLMultiAttr({
         headerHeight: finalHeight,
       })
-      dispatch(executionActions.setResizingNodeIDsReducer([]))
+      dispatch(configActions.setResizingNodeIDsReducer([]))
     },
     [dispatch, handleUpdateOriginalDSLMultiAttr, headerHeight, headerMaxHeight],
   )
@@ -480,7 +440,7 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
       handleUpdateOriginalDSLMultiAttr({
         footerHeight: finalHeight,
       })
-      dispatch(executionActions.setResizingNodeIDsReducer([]))
+      dispatch(configActions.setResizingNodeIDsReducer([]))
     },
     [dispatch, footerHeight, footerMaxHeight, handleUpdateOriginalDSLMultiAttr],
   )
@@ -564,14 +524,28 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
           onResizeStart={handleResizeStart}
           onResizeStop={handleOnResizeTopStop}
         >
-          <div css={formHeaderStyle}>{renderHeader}</div>
+          <div css={formHeaderStyle}>
+            <RenderChildrenCanvas
+              displayName={childrenNodeDisplayNames[0]}
+              columnNumber={columnNumber}
+              handleUpdateHeight={handleUpdateHeight}
+              canResizeCanvas={canResizeCanvas}
+              containerPadding={padding?.size}
+            />
+          </div>
           {isMouseHover && !isDraggingActive && isEditMode && (
             <div css={applyDashedLineStyle(false, true, false)} />
           )}
         </Resizable>
       )}
       <div css={formBodyStyle}>
-        {renderBody}
+        <RenderChildrenCanvas
+          displayName={childrenNodeDisplayNames[1]}
+          columnNumber={columnNumber}
+          handleUpdateHeight={handleUpdateHeight}
+          canResizeCanvas={canResizeCanvas}
+          containerPadding={padding?.size}
+        />
         {isMouseHover && !isDraggingActive && isEditMode && (
           <div css={applyXDirectionDashedLineStyle(false, true, false)} />
         )}
@@ -595,7 +569,15 @@ export const FormWidget: FC<FormWidgetProps> = (props) => {
           onResizeStart={handleResizeStart}
           onResizeStop={handleOnResizeBottomStop}
         >
-          <div css={formHeaderStyle}>{renderFooter}</div>
+          <div css={formHeaderStyle}>
+            <RenderChildrenCanvas
+              displayName={childrenNodeDisplayNames[2]}
+              columnNumber={columnNumber}
+              handleUpdateHeight={handleUpdateHeight}
+              canResizeCanvas={canResizeCanvas}
+              containerPadding={padding?.size}
+            />
+          </div>
           {isMouseHover && !isDraggingActive && isEditMode && (
             <div
               css={applyDashedLineStyle(false, true, false, footerMaxHeight)}

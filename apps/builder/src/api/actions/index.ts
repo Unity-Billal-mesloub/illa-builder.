@@ -1,15 +1,12 @@
 import { builderRequest } from "@illa-public/illa-net"
-import { actionActions } from "@/redux/currentApp/action/actionSlice"
 import {
   ActionContent,
-  ActionItem,
-} from "@/redux/currentApp/action/actionState"
-import { resourceActions } from "@/redux/resource/resourceSlice"
-import {
   Resource,
   ResourceContent,
-  ResourceInitialConfig,
-} from "@/redux/resource/resourceState"
+} from "@illa-public/public-types"
+import { ActionItem } from "@illa-public/public-types"
+import { resourceActions } from "@/redux/resource/resourceSlice"
+import { ResourceInitialConfig } from "@/redux/resource/resourceState"
 import store from "@/store"
 import { getCurrentTeamID } from "@/utils/team"
 
@@ -42,6 +39,5 @@ export const createAction = async (
     },
     { teamID: getCurrentTeamID() },
   )
-  store.dispatch(actionActions.addActionItemReducer(response.data))
   return response.data.actionID
 }

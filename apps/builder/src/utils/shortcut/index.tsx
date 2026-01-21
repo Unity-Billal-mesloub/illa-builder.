@@ -1,7 +1,9 @@
+import { isILLAAPiError } from "@illa-public/illa-net"
 import { ILLA_MIXPANEL_EVENT_TYPE } from "@illa-public/mixpanel-utils"
 import { useUpgradeModal } from "@illa-public/upgrade-modal"
 import { getCurrentTeamInfo, getPlanUtils } from "@illa-public/user-data"
 import { canUseUpgradeFeature } from "@illa-public/user-role-utils"
+import { isCloudVersion } from "@illa-public/utils"
 import { FC, ReactNode, useCallback, useEffect, useState } from "react"
 import { useHotkeys } from "react-hotkeys-hook"
 import { useTranslation } from "react-i18next"
@@ -19,10 +21,9 @@ import {
 import { configActions } from "@/redux/config/configSlice"
 import { getActionItemByDisplayName } from "@/redux/currentApp/action/actionSelector"
 import {
-  flattenAllComponentNodeToMap,
-  getCanvas,
-  getSelectedComponentNode,
-  searchDsl,
+  getComponentMap,
+  getOriginalGlobalDataNames,
+  searchComponentFromMap,
 } from "@/redux/currentApp/components/componentsSelector"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
 import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
@@ -32,7 +33,6 @@ import { CopyManager } from "@/utils/copyManager"
 import { FocusManager } from "@/utils/focusManager"
 import { trackInEditor } from "@/utils/mixpanelHelper"
 import { ShortCutContext } from "@/utils/shortcut/shortcutProvider"
-import { isILLAAPiError } from "@/utils/typeHelper"
 import IllaUndoRedoManager from "@/utils/undoRedo/undo"
 import { isMAC } from "@/utils/userAgent"
 import { DisplayNameGenerator } from "../generators/generateDisplayName"
@@ -46,9 +46,8 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
 
   const isEditMode = useSelector(getIsILLAEditMode)
   const currentSelectedComponent = useSelector(getSelectedComponentDisplayNames)
-  const currentSelectedComponentNode = useSelector(getSelectedComponentNode)
   const currentSelectedAction = useSelector(getSelectedAction)
-  const canvasRootNode = useSelector(getCanvas)
+  const componentsMap = useSelector(getComponentMap)
   const executionResult = useSelector(getExecutionResult)
   const showShadows = useSelector(isShowDot)
   const teamInfo = useSelector(getCurrentTeamInfo)
@@ -130,9 +129,20 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
                   store.getState(),
                   displayName[i],
                 )
+                const globalDataNames = getOriginalGlobalDataNames(
+                  store.getState(),
+                )
                 if (action) {
                   // fail to await @chenlongbo
                   onDeleteActionItem(action)
+                }
+                if (globalDataNames.includes(displayName[i])) {
+                  dispatch(
+                    componentsActions.deleteGlobalStateByKeyReducer({
+                      key: displayName[i],
+                    }),
+                  )
+                  DisplayNameGenerator.removeDisplayName(displayName[i])
                 }
               }
               trackInEditor(ILLA_MIXPANEL_EVENT_TYPE.CLICK, {
@@ -217,50 +227,49 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
       case "page_config":
         break
       case "canvas": {
-        if (canvasRootNode) {
+        if (componentsMap) {
           const rootNode = executionResult.root
           if (!rootNode) return
           const currentPageDisplayName =
             rootNode.pageSortedKey[rootNode.currentPageIndex]
-          const pageNode = searchDsl(canvasRootNode, currentPageDisplayName)
+          const pageNode = searchComponentFromMap(
+            componentsMap,
+            currentPageDisplayName,
+          )
           if (!pageNode) return
           let bodySectionDisplayName: string = ""
-          pageNode.childrenNode.find((sectionNode) => {
-            const displayName = sectionNode.displayName
-            const currentSectionProps = executionResult[displayName]
+          pageNode.childrenNode.find((sectionNodeDisplayName) => {
+            const currentSectionProps = executionResult[sectionNodeDisplayName]
             if (
               currentSectionProps &&
               currentSectionProps.viewSortedKey &&
               currentSectionProps.currentViewIndex >= 0 &&
-              sectionNode.showName === "bodySection"
+              componentsMap[sectionNodeDisplayName].showName === "bodySection"
             ) {
               const { currentViewIndex, viewSortedKey } = currentSectionProps
               bodySectionDisplayName = viewSortedKey[currentViewIndex]
             }
           })
           if (!bodySectionDisplayName) return
-          const componentNodesMap = flattenAllComponentNodeToMap(pageNode)
-          const allChildrenNodes = Array.isArray(
-            componentNodesMap[bodySectionDisplayName].childrenNode,
+          const allChildrenNodeDisplayNames = Array.isArray(
+            componentsMap[bodySectionDisplayName].childrenNode,
           )
-            ? componentNodesMap[bodySectionDisplayName].childrenNode
+            ? componentsMap[bodySectionDisplayName].childrenNode
             : []
-
-          const childNodeDisplayNames = allChildrenNodes.map(
-            (node) => node.displayName,
-          )
 
           trackInEditor(ILLA_MIXPANEL_EVENT_TYPE.SELECT, {
             element: "component",
             parameter1: "keyboard",
           })
-          dispatch(configActions.updateSelectedComponent(childNodeDisplayNames))
+          dispatch(
+            configActions.updateSelectedComponent(allChildrenNodeDisplayNames),
+          )
         }
       }
     }
-  }, [canvasRootNode, dispatch, executionResult])
+  }, [componentsMap, dispatch, executionResult])
 
-  const copySomethingHandler = useCallback(() => {
+  const copySomethingHandler = () => {
     switch (FocusManager.getFocus()) {
       case "data_page":
         break
@@ -272,15 +281,15 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
       case "data_component":
         if (
           currentSelectedComponent != null &&
-          currentSelectedComponentNode.length > 0
+          currentSelectedComponent.length > 0
         ) {
-          CopyManager.copyComponentNode(currentSelectedComponentNode)
+          CopyManager.copyComponentNodeByDisplayName(currentSelectedComponent)
         }
         break
       case "data_action":
       case "action":
         if (currentSelectedAction != null) {
-          CopyManager.copyAction(currentSelectedAction)
+          CopyManager.copyActionByActionID(currentSelectedAction.actionID)
         }
         break
       case "widget_picker":
@@ -290,13 +299,9 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
       case "page_config":
         break
     }
-  }, [
-    currentSelectedAction,
-    currentSelectedComponent,
-    currentSelectedComponentNode,
-  ])
+  }
 
-  const copyAndPasteHandler = useCallback(() => {
+  const copyAndPasteHandler = () => {
     switch (FocusManager.getFocus()) {
       case "data_page":
         break
@@ -308,15 +313,15 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
       case "data_component":
         if (
           currentSelectedComponent != null &&
-          currentSelectedComponentNode.length > 0
+          currentSelectedComponent.length > 0
         ) {
-          CopyManager.copyComponentNode(currentSelectedComponentNode)
+          CopyManager.copyComponentNodeByDisplayName(currentSelectedComponent)
         }
         break
       case "data_action":
       case "action":
         if (currentSelectedAction != null) {
-          CopyManager.copyAction(currentSelectedAction)
+          CopyManager.copyActionByActionID(currentSelectedAction.actionID)
         }
         break
       case "widget_picker":
@@ -327,11 +332,7 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
         break
     }
     CopyManager.paste("keyboard")
-  }, [
-    currentSelectedAction,
-    currentSelectedComponent,
-    currentSelectedComponentNode,
-  ])
+  }
 
   const showDotHandler = useCallback(
     (keyboardEventType: string) => {
@@ -354,6 +355,7 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
     if (!canUseBillingFeature) {
       upgradeModal({
         modalType: "upgrade",
+        from: "app_edit_keyboard_history",
       })
     } else if (appId) {
       if (saveLoading) return
@@ -377,8 +379,13 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
     `${isMAC() ? Key.Meta : Key.Control}+s`,
     (keyboardEvent) => {
       if (keyboardEvent.repeat) return
-
-      handleSaveToHistory()
+      if (isCloudVersion) {
+        handleSaveToHistory()
+      } else {
+        message.success({
+          content: t("dont_need_save"),
+        })
+      }
     },
     {
       enableOnFormTags: true,
@@ -444,6 +451,7 @@ export const Shortcut: FC<{ children: ReactNode }> = ({ children }) => {
     },
     [selectAllBodyComponentsHandler],
   )
+
   useHotkeys(
     `${isMAC() ? Key.Meta : Key.Control}+c`,
     (keyboardEvent) => {

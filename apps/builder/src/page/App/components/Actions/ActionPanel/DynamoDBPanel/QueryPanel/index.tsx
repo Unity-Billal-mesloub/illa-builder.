@@ -1,15 +1,15 @@
+import { DynamoQueryStructParams } from "@illa-public/public-types"
 import { FC } from "react"
 import {
   DynamoDBPanelItemsInfo,
   DynamoDBSubPanelProps,
 } from "@/page/App/components/Actions/ActionPanel/DynamoDBPanel/interface"
 import { queryPanelItems } from "@/page/App/components/Actions/ActionPanel/DynamoDBPanel/items"
-import { InputEditor } from "@/page/App/components/InputEditor"
-import { QueryStructParams } from "@/redux/currentApp/action/dynamoDBAction"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 
 export const QueryPanel: FC<DynamoDBSubPanelProps> = (props) => {
   const { handleValueChange } = props
-  const structParams = props.structParams as QueryStructParams
+  const structParams = props.structParams as DynamoQueryStructParams
 
   return (
     <>
@@ -20,7 +20,7 @@ export const QueryPanel: FC<DynamoDBSubPanelProps> = (props) => {
             key={name}
             lineNumbers
             style={{ maxHeight: "88px" }}
-            value={structParams[name as keyof QueryStructParams]}
+            value={structParams[name as keyof DynamoQueryStructParams]}
             onChange={(value) => handleValueChange(value, name)}
             expectedType={expectedType}
             title={title}

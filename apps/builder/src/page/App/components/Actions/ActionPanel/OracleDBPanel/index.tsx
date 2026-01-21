@@ -1,26 +1,25 @@
+import { OracleDBActionInitial } from "@illa-public/public-configs"
+import {
+  ActionItem,
+  OracleDBAction,
+  OracleDBActionSQLMode,
+  OracleDBActionType,
+} from "@illa-public/public-types"
 import { FC, useCallback, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
+import { Trigger } from "@illa-design/react"
 import { CODE_LANG } from "@/components/CodeEditor/CodeMirror/extensions/interface"
-import { ActionEventHandler } from "@/page/App/components/Actions/ActionPanel/ActionEventHandler"
-import { ResourceChoose } from "@/page/App/components/Actions/ActionPanel/ResourceChoose"
+import { ILLAMarkdown } from "@/components/ILLAMarkdown"
 import { TransformerComponent } from "@/page/App/components/Actions/ActionPanel/TransformerComponent"
-import {
-  actionItemContainer,
-  panelContainerStyle,
-} from "@/page/App/components/Actions/ActionPanel/style"
-import { InputEditor } from "@/page/App/components/InputEditor"
+import { actionItemContainer } from "@/page/App/components/Actions/ActionPanel/style"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  OracleDBAction,
-  OracleDBActionInitial,
-  OracleDBActionSQLMode,
-  OracleDBActionType,
-} from "@/redux/currentApp/action/oracleDBAction"
 import { fetchResourceMeta } from "@/services/resource"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
+import { SQLModeSelector } from "../pulicComponent/SQLModeSelector"
+import { labelStyle, labelTipsStyle, modeContainerStyle } from "./style"
 
 const OracleDBPanel: FC = () => {
   const { t } = useTranslation()
@@ -28,16 +27,15 @@ const OracleDBPanel: FC = () => {
   const cachedAction = useSelector(getCachedAction) as ActionItem<
     OracleDBAction<OracleDBActionType>
   >
-  const currentAction = useSelector(getCachedAction)!!
   const [sqlTable, setSqlTable] = useState<Record<string, unknown>>()
   const content = cachedAction.content ?? OracleDBActionInitial
 
   useEffect(() => {
-    if (currentAction.resourceID == undefined) return
-    fetchResourceMeta(currentAction.resourceID).then(({ data }) => {
+    if (cachedAction.resourceID == undefined) return
+    fetchResourceMeta(cachedAction.resourceID).then(({ data }) => {
       setSqlTable(data?.Schema ?? {})
     })
-  }, [currentAction.resourceID])
+  }, [cachedAction.resourceID])
 
   const handleValueChange = useCallback(
     (name: string) => (value: string) => {
@@ -58,8 +56,7 @@ const OracleDBPanel: FC = () => {
   )
 
   return (
-    <div css={panelContainerStyle}>
-      <ResourceChoose />
+    <>
       <div css={actionItemContainer}>
         <InputEditor
           style={{ height: "88px" }}
@@ -71,11 +68,33 @@ const OracleDBPanel: FC = () => {
           value={(content.opts as OracleDBActionSQLMode).raw}
           onChange={handleValueChange("raw")}
           sqlScheme={sqlTable}
+          showSafeModeTips={content.mode === "sql-safe"}
         />
         <TransformerComponent fullWidth />
       </div>
-      <ActionEventHandler />
-    </div>
+      {(content.mode === "sql" || content.mode === "sql-safe") && (
+        <div css={modeContainerStyle}>
+          <Trigger
+            content={
+              <ILLAMarkdown
+                textString={t(
+                  "editor.action.panel.label.tips.general.safe_mode",
+                )}
+              />
+            }
+            trigger="hover"
+            position="left"
+            maxW="240px"
+          >
+            <span css={labelStyle}>
+              {t("editor.action.panel.label.general.safe_mode")}
+              <span css={labelTipsStyle} />
+            </span>
+          </Trigger>
+          <SQLModeSelector />
+        </div>
+      )}
+    </>
   )
 }
 OracleDBPanel.displayName = "OracleDBPanel"

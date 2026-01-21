@@ -11,7 +11,7 @@ import {
 import { useDrop } from "react-dnd"
 import { useDispatch, useSelector } from "react-redux"
 import useMeasure from "react-use-measure"
-import { ReactComponent as ResizeBar } from "@/assets/resizeBar.svg"
+import ResizeBar from "@/assets/resizeBar.svg?react"
 import { DropResultInfo } from "@/page/App/components/DotPanel/components/Canvas/interface"
 import { UNIT_HEIGHT } from "@/page/App/components/DotPanel/constant/canvas"
 import { DragInfo } from "@/page/App/components/ScaleSquare/components/DragContainer/interface"
@@ -20,8 +20,8 @@ import {
   applyXDirectionDashedLineStyle,
 } from "@/page/App/components/ScaleSquare/style"
 import { getIsILLAEditMode } from "@/redux/config/configSelector"
-import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
-import { RenderChildrenCanvas } from "../PublicSector/RenderChildrenCanvas"
+import { configActions } from "@/redux/config/configSlice"
+import RenderChildrenCanvas from "../PublicSector/RenderChildrenCanvas"
 import { ModalWidgetProps } from "./interface"
 import {
   formBodyStyle,
@@ -120,43 +120,8 @@ export const ModalWidget: FC<ModalWidgetProps> = (props) => {
   const isEditMode = useSelector(getIsILLAEditMode)
 
   const handleUpdateHeight = useCallback((_height: number) => {
-    // console.log("height", height)
     // TODO: auto height
   }, [])
-
-  const renderHeader = useMemo(() => {
-    const headerComponentNode = childrenNode[0]
-    return (
-      <RenderChildrenCanvas
-        currentComponentNode={headerComponentNode}
-        columnNumber={columnNumber}
-        handleUpdateHeight={handleUpdateHeight}
-      />
-    )
-  }, [childrenNode, columnNumber, handleUpdateHeight])
-
-  const renderBody = useMemo(() => {
-    const bodyComponentNode = childrenNode[1]
-
-    return (
-      <RenderChildrenCanvas
-        currentComponentNode={bodyComponentNode}
-        columnNumber={columnNumber}
-        handleUpdateHeight={handleUpdateHeight}
-      />
-    )
-  }, [childrenNode, columnNumber, handleUpdateHeight])
-
-  const renderFooter = useMemo(() => {
-    const footerComponentNode = childrenNode[2]
-    return (
-      <RenderChildrenCanvas
-        currentComponentNode={footerComponentNode}
-        columnNumber={columnNumber}
-        handleUpdateHeight={handleUpdateHeight}
-      />
-    )
-  }, [childrenNode, columnNumber, handleUpdateHeight])
 
   const resizeTopHandler = useMemo(() => {
     return {
@@ -181,7 +146,11 @@ export const ModalWidget: FC<ModalWidgetProps> = (props) => {
   const handleResizeStart: ResizeStartCallback = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    dispatch(executionActions.setResizingNodeIDsReducer([displayName]))
+    dispatch(
+      configActions.setResizingNodeIDsReducer([
+        `${displayName}-resize-modal-header`,
+      ]),
+    )
   }
 
   const handleOnResizeTopStop: ResizeCallback = useCallback(
@@ -196,7 +165,7 @@ export const ModalWidget: FC<ModalWidgetProps> = (props) => {
       handleUpdateOriginalDSLMultiAttr({
         headerHeight: finalHeight,
       })
-      dispatch(executionActions.setResizingNodeIDsReducer([]))
+      dispatch(configActions.setResizingNodeIDsReducer([]))
     },
     [dispatch, handleUpdateOriginalDSLMultiAttr, headerHeight, headerMaxHeight],
   )
@@ -213,7 +182,7 @@ export const ModalWidget: FC<ModalWidgetProps> = (props) => {
       handleUpdateOriginalDSLMultiAttr({
         footerHeight: finalHeight,
       })
-      dispatch(executionActions.setResizingNodeIDsReducer([]))
+      dispatch(configActions.setResizingNodeIDsReducer([]))
     },
     [dispatch, footerHeight, footerMaxHeight, handleUpdateOriginalDSLMultiAttr],
   )
@@ -266,14 +235,24 @@ export const ModalWidget: FC<ModalWidgetProps> = (props) => {
           onResizeStart={handleResizeStart}
           onResizeStop={handleOnResizeTopStop}
         >
-          <div css={formHeaderStyle}>{renderHeader}</div>
+          <div css={formHeaderStyle}>
+            <RenderChildrenCanvas
+              displayName={childrenNode[0]}
+              columnNumber={columnNumber}
+              handleUpdateHeight={handleUpdateHeight}
+            />
+          </div>
           {isEditMode && isMouseHover && !isDraggingActive && (
             <div css={applyDashedLineStyle(false, true, false)} />
           )}
         </Resizable>
       )}
       <div css={formBodyStyle}>
-        {renderBody}
+        <RenderChildrenCanvas
+          displayName={childrenNode[1]}
+          columnNumber={columnNumber}
+          handleUpdateHeight={handleUpdateHeight}
+        />
         {isEditMode && isMouseHover && !isDraggingActive && (
           <div css={applyXDirectionDashedLineStyle(false, true, false)} />
         )}
@@ -295,7 +274,13 @@ export const ModalWidget: FC<ModalWidgetProps> = (props) => {
           onResizeStart={handleResizeStart}
           onResizeStop={handleOnResizeBottomStop}
         >
-          <div css={formHeaderStyle}>{renderFooter}</div>
+          <div css={formHeaderStyle}>
+            <RenderChildrenCanvas
+              displayName={childrenNode[2]}
+              columnNumber={columnNumber}
+              handleUpdateHeight={handleUpdateHeight}
+            />
+          </div>
           {isEditMode && isMouseHover && !isDraggingActive && (
             <div
               css={applyDashedLineStyle(false, true, false, footerMaxHeight)}

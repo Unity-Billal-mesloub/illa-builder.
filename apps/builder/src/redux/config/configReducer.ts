@@ -1,15 +1,19 @@
+import {
+  INIT_ACTION_ADVANCED_CONFIG,
+  INIT_ACTION_MOCK_CONFIG,
+} from "@illa-public/public-configs"
+import {
+  ActionContent,
+  IAdvancedConfig,
+  IMockConfig,
+} from "@illa-public/public-types"
+import { ActionItem } from "@illa-public/public-types"
 import { CaseReducer, PayloadAction } from "@reduxjs/toolkit"
-import { INIT_ACTION_ADVANCED_CONFIG } from "@/page/App/components/Actions/AdvancedPanel/constant"
 import {
   ConfigInitialState,
   ConfigState,
   IllaMode,
 } from "@/redux/config/configState"
-import {
-  ActionContent,
-  ActionItem,
-  IAdvancedConfig,
-} from "@/redux/currentApp/action/actionState"
 import {
   UpdateCanvasShapePayload,
   UpdateWSStatusPayload,
@@ -85,6 +89,7 @@ export const updateCachedActionAdvancedConfigReducer: CaseReducer<
     cachedAction.config = {
       public: false,
       advancedConfig: INIT_ACTION_ADVANCED_CONFIG,
+      mockConfig: INIT_ACTION_MOCK_CONFIG,
     }
   }
   if (!cachedAction.config.advancedConfig) {
@@ -92,6 +97,29 @@ export const updateCachedActionAdvancedConfigReducer: CaseReducer<
   }
   cachedAction.config.advancedConfig = {
     ...cachedAction.config.advancedConfig,
+    ...action.payload,
+  }
+  state.cachedAction = cachedAction
+}
+
+export const updateCachedActionMockConfigReducer: CaseReducer<
+  ConfigState,
+  PayloadAction<Partial<IMockConfig>>
+> = (state, action) => {
+  const cachedAction = state.cachedAction
+  if (!cachedAction) return
+  if (!cachedAction.config) {
+    cachedAction.config = {
+      public: false,
+      advancedConfig: INIT_ACTION_ADVANCED_CONFIG,
+      mockConfig: INIT_ACTION_MOCK_CONFIG,
+    }
+  }
+  if (!cachedAction.config.mockConfig) {
+    cachedAction.config.mockConfig = INIT_ACTION_MOCK_CONFIG
+  }
+  cachedAction.config.mockConfig = {
+    ...cachedAction.config.mockConfig,
     ...action.payload,
   }
   state.cachedAction = cachedAction
@@ -183,4 +211,36 @@ export const resetSelectedActionReducer: CaseReducer<
   if (state.cachedAction.actionID === selectedActionID) {
     state.cachedAction = null
   }
+}
+
+export const addExpandedWidgetReducer: CaseReducer<
+  ConfigState,
+  PayloadAction<string[]>
+> = (state, action) => {
+  action.payload.forEach((displayName) => {
+    state.expandedWidgets[displayName] = true
+  })
+}
+
+export const removeExpandWidgetReducer: CaseReducer<
+  ConfigState,
+  PayloadAction<string[]>
+> = (state, action) => {
+  action.payload.forEach((displayName) => {
+    state.expandedWidgets[displayName] = false
+  })
+}
+
+export const setDraggingNodeIDsReducer: CaseReducer<
+  ConfigState,
+  PayloadAction<string[]>
+> = (state, action) => {
+  state.draggingComponentIDs = action.payload
+}
+
+export const setResizingNodeIDsReducer: CaseReducer<
+  ConfigState,
+  PayloadAction<string[]>
+> = (state, action) => {
+  state.resizingComponentIDs = action.payload
 }

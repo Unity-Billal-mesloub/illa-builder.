@@ -1,5 +1,9 @@
 import { css } from "@emotion/react"
-import { getColor } from "@illa-design/react"
+import {
+  getColor,
+  getSpecialThemeColor,
+  hasNineStepColor,
+} from "@illa-design/react"
 
 export const resizeLineStyle = css`
   width: 100%;
@@ -21,7 +25,7 @@ export const chatContainerStyle = (backgroundColor: string) => css`
   display: flex;
   overflow: hidden;
   flex-direction: column;
-  background-color: ${getColor(backgroundColor, "01")};
+  background-color: ${getSpecialThemeColor(backgroundColor)};
 `
 
 export const messageListContainerStyle = css`
@@ -56,36 +60,42 @@ export const messageHeaderTimeStyle = css`
   line-height: 20px;
   color: ${getColor("grayBlue", "03")};
 `
-export const messageContentStyle = (isOwn: boolean) => css`
-  .cs-message__content-wrapper {
-    margin-top: 12px;
-    width: 100%;
-  }
-  .cs-message__footer {
-    margin: 0;
-  }
-  .cs-message__content {
-    height: auto;
-    width: auto;
-    border-radius: 0;
-    padding: 0;
-    background-color: transparent !important;
-  }
-  .cs-message__avatar {
-    margin: ${isOwn ? "12px 40px 0 16px" : "12px 16px 0 40px"} !important;
-    width: 32px;
-    .cs-avatar {
-      height: 32px;
-      width: 32px;
-      min-height: 32px;
-      min-width: 32px;
+export const messageContentStyle = (isOwn: boolean, avatarPadding?: string) => {
+  const finalAvatarPadding = !avatarPadding ? "32px" : avatarPadding
+
+  return css`
+    .cs-message__content-wrapper {
+      margin-top: 12px;
+      width: 100%;
     }
-  }
-  .cs-message__custom-content {
-    padding-bottom: 8px;
-    display: flex;
-  }
-`
+    .cs-message__footer {
+      margin: 0;
+    }
+    .cs-message__content {
+      height: auto;
+      width: auto;
+      border-radius: 0;
+      padding: 0;
+      background-color: transparent !important;
+    }
+    .cs-message__avatar {
+      margin: ${isOwn
+        ? `12px ${finalAvatarPadding} 0 16px`
+        : `12px 16px 0 ${finalAvatarPadding}`} !important;
+      width: 32px;
+      .cs-avatar {
+        height: 32px;
+        width: 32px;
+        min-height: 32px;
+        min-width: 32px;
+      }
+    }
+    .cs-message__custom-content {
+      padding-bottom: 8px;
+      display: flex;
+    }
+  `
+}
 
 export const messageFooterStyle = (isOwn: boolean) => css`
   flex-direction: ${isOwn ? "row-reverse" : "row"};
@@ -110,14 +120,15 @@ export const messageTextStyle = (
   rightMessageColor: string,
 ) => {
   const backgroundColor = isOwn
-    ? getColor(rightMessageColor, "03")
-    : getColor(leftMessageColor, "09")
+    ? getSpecialThemeColor(rightMessageColor)
+    : getColor(
+        leftMessageColor,
+        hasNineStepColor(leftMessageColor) ? "09" : "08",
+      )
   const color = isOwn ? getColor("white", "01") : getColor("grayBlue", "02")
 
   return css`
-    background-color: ${backgroundColor
-      ? backgroundColor
-      : getColor(leftMessageColor, "07")};
+    background-color: ${backgroundColor};
     color: ${color}!important;
     padding: 8px 12px;
     border-radius: 8px;
@@ -132,15 +143,16 @@ export const messageTextStyle = (
 }
 
 export const receivingStyle = (leftMessageColor: string) => {
-  const backgroundColor = getColor(leftMessageColor, "09")
+  const backgroundColor = getColor(
+    leftMessageColor,
+    hasNineStepColor(leftMessageColor) ? "09" : "08",
+  )
   return css`
     padding: 8px 12px;
     border-radius: 8px;
     width: 40px;
     height: 33px;
-    background-color: ${backgroundColor
-      ? backgroundColor
-      : getColor(leftMessageColor, "07")};
+    background-color: ${backgroundColor};
     color: ${getColor("grayBlue", "02")}!important;
     &:before {
       content: "";

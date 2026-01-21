@@ -1,4 +1,4 @@
-import { ReactComponent as RichTextWidgetIcon } from "@/assets/widgetCover/richText.svg"
+import RichTextWidgetIcon from "@/assets/widgetCover/richText.svg?react"
 import i18n from "@/i18n/config"
 import { RESIZE_DIRECTION, WidgetConfig } from "@/widgetLibrary/interface"
 
@@ -21,5 +21,6 @@ export const RICH_TEXT_WIDGET_CONFIG: WidgetConfig = {
     radius: "4px",
     shadow: "small",
     markdownValue: "",
+    blockValue: undefined,
   },
 }

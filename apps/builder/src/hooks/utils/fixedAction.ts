@@ -1,10 +1,10 @@
-import { cloneDeep } from "lodash"
-import { INIT_ACTION_ADVANCED_CONFIG } from "@/page/App/components/Actions/AdvancedPanel/constant"
 import {
-  ACTION_RUN_TIME,
-  ActionContent,
-  ActionItem,
-} from "@/redux/currentApp/action/actionState"
+  INIT_ACTION_ADVANCED_CONFIG,
+  INIT_ACTION_MOCK_CONFIG,
+} from "@illa-public/public-configs"
+import { ACTION_RUN_TIME, ActionContent } from "@illa-public/public-types"
+import { ActionItem } from "@illa-public/public-types"
+import { klona } from "klona/json"
 
 export const fixedActionToNewAction = (
   actions?: ActionItem<ActionContent>[],
@@ -14,15 +14,17 @@ export const fixedActionToNewAction = (
       if (action.actionType === "transformer") {
         return action
       }
-      const advancedConfig = cloneDeep(INIT_ACTION_ADVANCED_CONFIG)
+      const advancedConfig = klona(INIT_ACTION_ADVANCED_CONFIG)
       if (action.triggerMode === "automate") {
         advancedConfig.runtime = ACTION_RUN_TIME.APP_LOADED
       }
       return {
         ...action,
         config: {
+          ...action.config,
           public: !!action.config?.public,
           advancedConfig: action.config?.advancedConfig ?? advancedConfig,
+          mockConfig: action.config?.mockConfig ?? INIT_ACTION_MOCK_CONFIG,
         },
       }
     }) ?? []

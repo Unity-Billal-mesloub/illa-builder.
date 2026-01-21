@@ -6,7 +6,7 @@ import {
   VerticalEndIcon,
   VerticalStartIcon,
 } from "@illa-design/react"
-import { ReactComponent as TextSizeIcon } from "@/assets/text-size-icon.svg"
+import TextSizeIcon from "@/assets/text-size-icon.svg?react"
 import i18n from "@/i18n/config"
 import { PanelConfig } from "@/page/App/components/InspectPanel/interface"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
@@ -155,6 +155,8 @@ export const TEXT_PANEL_CONFIG: PanelConfig[] = [
       },
       {
         id: `${baseWidgetName}-style-size`,
+        shown: (disableMarkdown: boolean) => disableMarkdown,
+        bindAttrName: ["disableMarkdown"],
         setterType: "STYLE_CONTAINER_SETTER",
         labelName: i18n.t("editor.inspect.setter_label.styles"),
         attrName: "styles",
@@ -169,6 +171,25 @@ export const TEXT_PANEL_CONFIG: PanelConfig[] = [
             icon: <TextSizeIcon />,
             defaultValue: "14px",
             expectedType: VALIDATION_TYPES.STRING,
+          },
+          {
+            id: `${baseWidgetName}-style-text-weight`,
+            setterType: "MEASURE_SELECT_SETTER",
+            useCustomLayout: true,
+            defaultValue: 400,
+            labelName: i18n.t("editor.inspect.setter_label.weight"),
+            attrName: "weight",
+            options: [
+              {
+                label: "editor.inspect.setter_option.weight.regular",
+                value: 400,
+              },
+              {
+                label: "editor.inspect.setter_option.weight.medium",
+                value: 500,
+              },
+              { label: "editor.inspect.setter_option.weight.bold", value: 700 },
+            ],
           },
         ],
       },

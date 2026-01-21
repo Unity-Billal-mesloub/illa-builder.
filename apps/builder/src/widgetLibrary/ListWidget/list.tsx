@@ -1,534 +1,130 @@
-import { chunk, cloneDeep, get, isEqual, set, toPath } from "lodash"
-import { Resizable, ResizeCallback, ResizeStartCallback } from "re-resizable"
+import { convertPathToString } from "@illa-public/dynamic-string"
+import { ComponentTreeNode } from "@illa-public/public-types"
+import { klona } from "klona"
+import { get, isEqual, set, toPath } from "lodash-es"
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useDispatch, useSelector } from "react-redux"
-import useMeasure from "react-use-measure"
-import { Pagination } from "@illa-design/react"
-import { RenderComponentCanvasWithJson } from "@/page/App/components/DotPanel/components/Canvas/renderComponentCanvasContainerWithJson"
-import {
-  LIKE_CONTAINER_WIDGET_PADDING,
-  LIST_ITEM_MARGIN_TOP,
-  WIDGET_SCALE_SQUARE_BORDER_WIDTH,
-} from "@/page/App/components/ScaleSquare/constant/widget"
-import {
-  applyBarHandlerStyle,
-  applyBarPointerStyle,
-  applyDashedLineStyle,
-} from "@/page/App/components/ScaleSquare/style"
-import { getIsILLAEditMode } from "@/redux/config/configSelector"
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
+import { useSelector } from "react-redux"
+import { getComponentMap } from "@/redux/currentApp/components/componentsSelector"
 import {
   getExecutionResult,
   getRawTree,
 } from "@/redux/currentApp/executionTree/executionSelector"
-import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
-import store from "@/store"
 import { evaluateDynamicString } from "@/utils/evaluateDynamicString"
-import { convertPathToString } from "@/utils/executionTreeHelper/utils"
+import { getObjectPaths } from "@/utils/executionTreeHelper/utils"
 import { isObject } from "@/utils/typeHelper"
 import { VALIDATION_TYPES, validationFactory } from "@/utils/validationFactory"
-import {
-  ListWidgetProps,
-  ListWidgetPropsWithChildrenNodes,
-  OVERFLOW_TYPE,
-  RenderCopyContainerProps,
-  RenderTemplateContainerProps,
-} from "@/widgetLibrary/ListWidget/interface"
-import {
-  ListParentContainerWithScroll,
-  applyListItemStyle,
-  listContainerStyle,
-  listParentContainerWithPagination,
-  paginationWrapperStyle,
-} from "@/widgetLibrary/ListWidget/style"
-import { RenderChildrenCanvas } from "../PublicSector/RenderChildrenCanvas"
-
-const RenderTemplateContainer: FC<RenderTemplateContainerProps> = (props) => {
-  const {
-    templateComponentNodes,
-    columnNumber,
-    dynamicHeight,
-    templateContainerHeight,
-    handleUpdateOriginalDSLMultiAttr,
-    updateComponentHeight,
-    itemNumber = 1,
-  } = props
-
-  const enableAutoHeight = dynamicHeight !== "fixed"
-
-  const handleUpdateHeight = useCallback(
-    (height: number) => {
-      if (!updateComponentHeight) return
-      if (
-        height + 2 * WIDGET_SCALE_SQUARE_BORDER_WIDTH !==
-        templateContainerHeight
-      ) {
-        handleUpdateOriginalDSLMultiAttr(
-          {
-            itemHeight: height + 2 * WIDGET_SCALE_SQUARE_BORDER_WIDTH,
-          },
-          true,
-        )
-      }
-      updateComponentHeight(
-        height +
-          2 * WIDGET_SCALE_SQUARE_BORDER_WIDTH +
-          (height +
-            2 * WIDGET_SCALE_SQUARE_BORDER_WIDTH +
-            LIST_ITEM_MARGIN_TOP) *
-            (itemNumber - 1),
-      )
-    },
-    [
-      handleUpdateOriginalDSLMultiAttr,
-      itemNumber,
-      templateContainerHeight,
-      updateComponentHeight,
-    ],
-  )
-
-  return (
-    <RenderChildrenCanvas
-      currentComponentNode={templateComponentNodes}
-      columnNumber={columnNumber}
-      handleUpdateHeight={handleUpdateHeight}
-      canResizeCanvas={enableAutoHeight}
-    />
-  )
-}
-
-const RenderCopyContainer: FC<RenderCopyContainerProps> = (props) => {
-  const {
-    templateComponentNodes,
-    templateContainerHeight: _templateContainerHeight,
-    columnNumber,
-    displayNamePrefix,
-  } = props
-  return templateComponentNodes ? (
-    <RenderComponentCanvasWithJson
-      componentNode={templateComponentNodes}
-      containerPadding={LIKE_CONTAINER_WIDGET_PADDING}
-      columnNumber={columnNumber}
-      displayNamePrefix={displayNamePrefix}
-    />
-  ) : null
-}
-
-const resizeBottomHandler = () => {
-  const rootState = store.getState()
-  const isEditMode = getIsILLAEditMode(rootState)
-  const scaleSquareState = !isEditMode ? "production" : "normal"
-  return {
-    bottom: (
-      <div css={applyBarHandlerStyle(true, scaleSquareState, "b")}>
-        <div
-          className="handler"
-          css={applyBarPointerStyle(true, scaleSquareState, "b")}
-        />
-      </div>
-    ),
-  }
-}
-
-export const ListWidgetWithPagination: FC<ListWidgetPropsWithChildrenNodes> = (
-  props,
-) => {
-  const {
-    dataSources,
-    itemHeight = 48,
-    displayName,
-    currentPage,
-    childrenNode,
-    handleUpdateMultiExecutionResult,
-    handleUpdateOriginalDSLMultiAttr,
-    copyComponents,
-    pageSize,
-    handleUpdateSelectedItem,
-    itemBackGroundColor,
-    columnNumber,
-    dynamicHeight = "fixed",
-    h,
-  } = props
-  const [containerRef, containerBounds] = useMeasure()
-  const [isMouseHover, setIsMouseHover] = useState(false)
-  const isEditMode = useSelector(getIsILLAEditMode)
-  const dispatch = useDispatch()
-
-  const itemNumber = useMemo(() => {
-    return (
-      pageSize ||
-      Math.floor(containerBounds.height / itemHeight) ||
-      dataSources?.length
-    )
-  }, [containerBounds.height, dataSources?.length, itemHeight, pageSize])
-
-  const handleChangeCurrentPage = useCallback(
-    (pageNumber: number) => {
-      handleUpdateMultiExecutionResult([
-        {
-          displayName,
-          value: {
-            currentPage: pageNumber,
-          },
-        },
-      ])
-    },
-    [displayName, handleUpdateMultiExecutionResult],
-  )
-
-  const currentData = useMemo(() => {
-    const chunkData = chunk(copyComponents, itemNumber)
-    if (chunkData.length === 0) return []
-    return currentPage < chunkData.length
-      ? chunkData[currentPage]
-      : chunkData[0]
-  }, [copyComponents, currentPage, itemNumber])
-
-  const handleResizeStart: ResizeStartCallback = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dispatch(executionActions.setResizingNodeIDsReducer([displayName]))
-  }
-
-  const handleOnResizeTopStop: ResizeCallback = useCallback(
-    (e, dir, elementRef, delta) => {
-      const { height } = delta
-      let finalHeight = itemHeight + height
-      handleUpdateOriginalDSLMultiAttr({
-        itemHeight: finalHeight,
-      })
-      dispatch(executionActions.setResizingNodeIDsReducer([]))
-    },
-    [dispatch, handleUpdateOriginalDSLMultiAttr, itemHeight],
-  )
-
-  const canShowBorder = isEditMode && isMouseHover
-
-  return (
-    <div
-      css={listParentContainerWithPagination}
-      onMouseEnter={() => {
-        setIsMouseHover(true)
-      }}
-      onMouseLeave={() => {
-        setIsMouseHover(false)
-      }}
-    >
-      <div css={listContainerStyle} ref={containerRef}>
-        <Resizable
-          size={{
-            width: "100%",
-            height: itemHeight,
-          }}
-          key={childrenNode[0].displayName}
-          bounds="parent"
-          minHeight={48}
-          maxHeight={
-            dynamicHeight !== "fixed" ? "unset" : containerBounds.height - 4
-          }
-          handleComponent={isMouseHover ? resizeBottomHandler() : undefined}
-          enable={
-            dynamicHeight !== "fixed"
-              ? {}
-              : {
-                  bottom: true,
-                }
-          }
-          onResizeStart={handleResizeStart}
-          onResizeStop={handleOnResizeTopStop}
-        >
-          <div
-            css={applyListItemStyle(
-              true,
-              canShowBorder,
-              itemBackGroundColor,
-              isEditMode,
-            )}
-            onClick={() => {
-              handleUpdateSelectedItem(0)
-            }}
-          >
-            <RenderTemplateContainer
-              templateComponentNodes={childrenNode[0]}
-              templateContainerHeight={itemHeight}
-              columnNumber={columnNumber}
-              dynamicHeight={dynamicHeight}
-              handleUpdateOriginalDSLMultiAttr={
-                handleUpdateOriginalDSLMultiAttr
-              }
-              h={h}
-            />
-          </div>
-          {canShowBorder && (
-            <div css={applyDashedLineStyle(false, true, false)} />
-          )}
-        </Resizable>
-        {currentData.map((node, index) => {
-          if (!currentPage && index === 0) {
-            return null
-          }
-          return (
-            <div
-              css={applyListItemStyle(
-                false,
-                canShowBorder,
-                itemBackGroundColor,
-                isEditMode,
-                itemHeight,
-              )}
-              key={node.displayName}
-              onClick={() => {
-                handleUpdateSelectedItem(index)
-              }}
-            >
-              <RenderCopyContainer
-                templateComponentNodes={node}
-                templateContainerHeight={itemHeight}
-                columnNumber={columnNumber}
-                displayNamePrefix={`list-child-${index}-`}
-              />
-            </div>
-          )
-        })}
-      </div>
-      <div css={paginationWrapperStyle}>
-        <Pagination
-          total={dataSources?.length}
-          current={currentPage}
-          pageSize={itemNumber}
-          size="medium"
-          sizeCanChange={false}
-          hideOnSinglePage={false}
-          simple
-          onChange={handleChangeCurrentPage}
-        />
-      </div>
-    </div>
-  )
-}
-
-export const ListWidgetWithScroll: FC<ListWidgetPropsWithChildrenNodes> = (
-  props,
-) => {
-  const {
-    itemHeight = 48,
-    handleUpdateOriginalDSLMultiAttr,
-    childrenNode,
-    copyComponents = [],
-    handleUpdateSelectedItem,
-    itemBackGroundColor,
-    columnNumber,
-    dynamicHeight,
-    updateComponentHeight,
-    h,
-    dynamicMinHeight,
-    dynamicMaxHeight,
-    displayName,
-  } = props
-  const [containerRef, containerBounds] = useMeasure()
-  const [isMouseHover, setIsMouseHover] = useState(false)
-  const isEditMode = useSelector(getIsILLAEditMode)
-  const dispatch = useDispatch()
-
-  const propsRef = useRef(props)
-
-  useEffect(() => {
-    if (!isEqual(propsRef.current, props)) {
-      propsRef.current = props
-    }
-  }, [props])
-
-  const handleResizeStart: ResizeStartCallback = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    dispatch(executionActions.setResizingNodeIDsReducer([displayName]))
-  }
-
-  const handleOnResizeTopStop: ResizeCallback = useCallback(
-    (e, dir, elementRef, delta) => {
-      let finalHeight = itemHeight + delta.height
-      handleUpdateOriginalDSLMultiAttr({
-        itemHeight: finalHeight,
-      })
-      dispatch(executionActions.setResizingNodeIDsReducer([]))
-    },
-    [dispatch, handleUpdateOriginalDSLMultiAttr, itemHeight],
-  )
-
-  const canShowBorder = isEditMode && isMouseHover
-  return (
-    <div
-      css={ListParentContainerWithScroll}
-      ref={containerRef}
-      onMouseEnter={() => {
-        setIsMouseHover(true)
-      }}
-      onMouseLeave={() => {
-        setIsMouseHover(false)
-      }}
-    >
-      <Resizable
-        size={{
-          width: "100%",
-          height: itemHeight,
-        }}
-        bounds="parent"
-        minHeight={48}
-        maxHeight={
-          dynamicHeight !== "fixed" ? "unset" : containerBounds.height - 4
-        }
-        handleComponent={isMouseHover ? resizeBottomHandler() : undefined}
-        enable={
-          dynamicHeight !== "fixed"
-            ? {}
-            : {
-                bottom: true,
-              }
-        }
-        onResizeStart={handleResizeStart}
-        onResizeStop={handleOnResizeTopStop}
-      >
-        <div
-          css={applyListItemStyle(
-            true,
-            canShowBorder,
-            itemBackGroundColor,
-            isEditMode,
-          )}
-          onClick={() => {
-            handleUpdateSelectedItem(0)
-          }}
-        >
-          <RenderTemplateContainer
-            templateComponentNodes={childrenNode[0]}
-            templateContainerHeight={itemHeight}
-            columnNumber={columnNumber}
-            dynamicHeight={dynamicHeight}
-            handleUpdateOriginalDSLMultiAttr={handleUpdateOriginalDSLMultiAttr}
-            itemNumber={copyComponents?.length}
-            updateComponentHeight={updateComponentHeight}
-            h={h}
-            dynamicMinHeight={dynamicMinHeight}
-            dynamicMaxHeight={dynamicMaxHeight}
-          />
-        </div>
-        {canShowBorder && (
-          <div css={applyDashedLineStyle(false, true, false)} />
-        )}
-      </Resizable>
-      {copyComponents?.map((node, index) => {
-        if (index === 0) return null
-        return (
-          <div
-            css={applyListItemStyle(
-              false,
-              canShowBorder,
-              itemBackGroundColor,
-              isEditMode,
-              itemHeight,
-            )}
-            key={node.displayName}
-            onClick={() => {
-              handleUpdateSelectedItem(index)
-            }}
-          >
-            <RenderCopyContainer
-              templateComponentNodes={node}
-              templateContainerHeight={itemHeight}
-              columnNumber={columnNumber}
-              displayNamePrefix={`list-child-${index}-`}
-            />
-          </div>
-        )
-      })}
-    </div>
-  )
-}
+import { ListWidgetProps } from "@/widgetLibrary/ListWidget/interface"
+import ListWidgetWithAutoPagination from "./components/ListWidgetWithAutoPagination"
+import ListWidgetWithServerPagination from "./components/ListWidgetWithServerPagination"
+import { ComponentLoading } from "./components/Loading"
 
 export const ListWidget: FC<ListWidgetProps> = (props) => {
   const {
-    overflowMethod,
     displayName,
     dataSources,
     childrenNode,
+    enableServerSidePagination,
+    paginationType,
+    enablePagination,
     handleUpdateMultiExecutionResult,
     triggerEventHandler,
     disabled,
-    dynamicHeight,
+    loading,
+    themeColor,
+    page = 1,
+    pageSize = 10,
   } = props
 
-  const propsRef = useRef(props)
   const executionResult = useSelector(getExecutionResult)
   const rawTree = useSelector(getRawTree)
+  const components = useSelector(getComponentMap)
+  const [selectIndexForMark, setSelectIndexForMark] = useState<
+    undefined | number
+  >()
 
   const prevDataSourcesRef = useRef(dataSources)
 
-  useEffect(() => {
-    if (!isEqual(propsRef.current, props)) {
-      propsRef.current = props
-    }
-  }, [props])
-
   const updateTemplateContainerNodesProps = useCallback(
-    (childrenNodes: ComponentNode[]) => {
-      return childrenNodes.map((itemContainer, index) => {
-        const currentItemContainer = cloneDeep(itemContainer)
-        const currentItems = currentItemContainer.childrenNode
-        if (Array.isArray(currentItems) && currentItems.length > 0) {
-          let newCurrentItems = currentItems.map((currentItem) => {
-            if (
-              currentItem.props &&
-              Array.isArray(currentItem.props.$dynamicAttrPaths)
-            ) {
-              const { displayName } = currentItem
-              const { $dynamicAttrPaths } = currentItem.props
-              $dynamicAttrPaths.forEach((path) => {
-                const finalPath = convertPathToString(toPath(path))
-                const requireEvalString = get(currentItem.props, finalPath, "")
-                let evalResult: unknown
-                try {
-                  evalResult = evaluateDynamicString(
+    (childrenNodeDisplayNames: string[]) => {
+      return childrenNodeDisplayNames.map((itemContainerDisplayName, index) => {
+        const currentItemContainer = klona(components[itemContainerDisplayName])
+        const currentItemDisplayNames = currentItemContainer.childrenNode
+        if (
+          Array.isArray(currentItemDisplayNames) &&
+          currentItemDisplayNames.length > 0
+        ) {
+          let newCurrentItems = currentItemDisplayNames.map(
+            (currentItemDisplayName) => {
+              const currentItem = JSON.parse(
+                JSON.stringify(components[currentItemDisplayName]),
+              ) as ComponentTreeNode
+              if (
+                currentItem.props &&
+                Array.isArray(currentItem.props.$dynamicAttrPaths)
+              ) {
+                const { displayName } = currentItem
+                const { $dynamicAttrPaths } = currentItem.props
+                $dynamicAttrPaths.forEach((path) => {
+                  const finalPath = convertPathToString(toPath(path))
+                  const requireEvalString = get(
+                    currentItem.props,
+                    finalPath,
                     "",
-                    requireEvalString,
-                    executionResult,
                   )
-                } catch (e) {
-                  console.log(e)
-                  evalResult = ""
-                }
-                let value = evalResult
-                if (Array.isArray(evalResult) && evalResult.length > index) {
-                  const rawWidget = rawTree[displayName]
-                  if (rawWidget && isObject(rawWidget.$validationPaths)) {
-                    const validationPaths = rawWidget.$validationPaths
-                    const validationType = validationPaths[finalPath]
-                    if (validationType === VALIDATION_TYPES.ARRAY) {
-                      const validationFunc = validationFactory[validationType]
-                      const res = validationFunc?.(evalResult, "")
-                      value = res?.safeValue ?? evalResult
-                    } else {
-                      value = evalResult[index]
-                      const validationFunc = validationFactory[validationType]
-                      const res = validationFunc?.(value, "")
-                      value = res?.safeValue ?? value
+                  let evalResult: unknown
+                  try {
+                    evalResult = evaluateDynamicString(
+                      "",
+                      requireEvalString,
+                      executionResult,
+                    )
+                  } catch (e) {
+                    console.log(e)
+                    evalResult = ""
+                  }
+                  let value = evalResult
+                  if (Array.isArray(evalResult) && evalResult.length > index) {
+                    const rawWidget = rawTree[displayName]
+                    if (rawWidget && isObject(rawWidget.$validationPaths)) {
+                      const validationPaths = rawWidget.$validationPaths
+                      const validationType = get(validationPaths, finalPath)
+                      if (validationType === VALIDATION_TYPES.ARRAY) {
+                        if (Array.isArray(evalResult)) {
+                          const needSetValue = evalResult[index] ?? []
+                          const validationFunc =
+                            validationFactory[validationType]
+                          const res = validationFunc?.(needSetValue, "")
+                          value = res?.safeValue ?? needSetValue
+                        } else {
+                          const validationFunc =
+                            validationFactory[validationType]
+                          const res = validationFunc?.(evalResult, "")
+                          value = res?.safeValue ?? evalResult
+                        }
+                      } else {
+                        value = evalResult[index]
+                        const validationFunc = validationFactory[validationType]
+                        const res = validationFunc?.(value, "")
+                        value = res?.safeValue ?? value
+                      }
                     }
                   }
-                }
-                set(currentItem, `props.${finalPath}`, value)
-              })
-            }
-            if (index !== 0) {
-              set(
-                currentItem,
-                "displayName",
-                `list-child-${index}-${currentItem.displayName}`,
-              )
-              if (disabled != undefined) {
-                set(currentItem, "props.disabled", disabled)
+                  set(currentItem, `props.${finalPath}`, value)
+                })
               }
-            }
-            return currentItem
-          })
+              if (index !== 0) {
+                set(
+                  currentItem,
+                  "displayName",
+                  `list-child-${index}-${currentItemDisplayName}`,
+                )
+                if (disabled != undefined) {
+                  set(currentItem, "props.disabled", disabled)
+                }
+              }
+              return currentItem
+            },
+          )
           newCurrentItems = newCurrentItems.map((item) => {
             const displayName = item.displayName
             const displayNameArray = displayName.split("-")
@@ -536,8 +132,11 @@ export const ListWidget: FC<ListWidgetProps> = (props) => {
             const rawWidget = rawTree[realDisplayName as string]
             const validationPaths = rawWidget.$validationPaths
             if (isObject(validationPaths)) {
-              Object.keys(validationPaths).forEach((path) => {
-                const validationType = validationPaths[path] as VALIDATION_TYPES
+              getObjectPaths(validationPaths).forEach((path) => {
+                const validationType = get(
+                  validationPaths,
+                  path,
+                ) as VALIDATION_TYPES
                 const validationFunc = validationFactory[validationType]
                 const currentValue = get(item, `props.${path}`, "")
                 const res = validationFunc?.(currentValue, "")
@@ -555,22 +154,22 @@ export const ListWidget: FC<ListWidgetProps> = (props) => {
             `list-widget-container-${index}`,
           )
         }
-        return currentItemContainer
+        return currentItemContainer as unknown as ComponentTreeNode
       })
     },
-    [disabled, executionResult, rawTree],
+    [components, disabled, executionResult, rawTree],
   )
 
   const transTemplateContainerNodes = useCallback(
-    (templateContainerNode: ComponentNode) => {
-      const canvasChildrenArray: ComponentNode[] = []
+    (templateContainerDisplayName: string) => {
+      const canvasChildrenDisplayNames: string[] = []
       if (Array.isArray(dataSources) && dataSources.length > 0) {
         dataSources.forEach((v, index) => {
-          canvasChildrenArray[index] = templateContainerNode
+          canvasChildrenDisplayNames[index] = templateContainerDisplayName
         })
-        return updateTemplateContainerNodesProps(canvasChildrenArray)
+        return updateTemplateContainerNodesProps(canvasChildrenDisplayNames)
       } else {
-        return updateTemplateContainerNodesProps([templateContainerNode])
+        return updateTemplateContainerNodesProps([templateContainerDisplayName])
       }
     },
     [dataSources, updateTemplateContainerNodesProps],
@@ -578,25 +177,39 @@ export const ListWidget: FC<ListWidgetProps> = (props) => {
 
   const getChildrenNodes = useMemo(() => {
     if (childrenNode && childrenNode.length > 0 && dataSources) {
-      let canvas = childrenNode[0]
-      return transTemplateContainerNodes(canvas)
+      let canvasDisplayName = childrenNode[0]
+      return transTemplateContainerNodes(canvasDisplayName)
     }
     return null
   }, [childrenNode, dataSources, transTemplateContainerNodes])
 
   const handleUpdateSelectedItem = useCallback(
-    (index: number) => {
+    (index?: number, isContainerClick?: boolean) => {
       if (!Array.isArray(dataSources) || disabled) return
+      if (
+        (selectIndexForMark === index && isContainerClick) ||
+        index === undefined
+      ) {
+        setSelectIndexForMark(undefined)
+      } else {
+        setSelectIndexForMark(index)
+      }
       new Promise((resolve) => {
         let value
-        if (index < 0 || index > dataSources.length) {
+        if (
+          index === undefined ||
+          (selectIndexForMark === index && isContainerClick)
+        ) {
           value = {
-            selectedItem: dataSources[0],
-            selectedIndex: 0,
+            selectedItem: undefined,
+            selectedIndex: undefined,
           }
         } else {
+          const selectItemIndex = enableServerSidePagination
+            ? index
+            : index + page * (pageSize ?? 0)
           value = {
-            selectedItem: dataSources[index],
+            selectedItem: dataSources[selectItemIndex],
             selectedIndex: index,
           }
         }
@@ -615,7 +228,11 @@ export const ListWidget: FC<ListWidgetProps> = (props) => {
       dataSources,
       disabled,
       displayName,
+      enableServerSidePagination,
       handleUpdateMultiExecutionResult,
+      page,
+      pageSize,
+      selectIndexForMark,
       triggerEventHandler,
     ],
   )
@@ -634,19 +251,42 @@ export const ListWidget: FC<ListWidgetProps> = (props) => {
     }
   }, [dataSources, displayName, handleUpdateMultiExecutionResult])
 
-  return overflowMethod === OVERFLOW_TYPE.PAGINATION &&
-    dynamicHeight !== "auto" ? (
-    <ListWidgetWithPagination
-      {...props}
-      copyComponents={getChildrenNodes}
-      handleUpdateSelectedItem={handleUpdateSelectedItem}
-    />
-  ) : (
-    <ListWidgetWithScroll
-      {...props}
-      copyComponents={getChildrenNodes}
-      handleUpdateSelectedItem={handleUpdateSelectedItem}
-    />
+  useEffect(() => {
+    handleUpdateMultiExecutionResult?.([
+      {
+        displayName,
+        value: {
+          page: 0,
+        },
+      },
+    ])
+  }, [
+    displayName,
+    handleUpdateMultiExecutionResult,
+    paginationType,
+    enablePagination,
+    enableServerSidePagination,
+  ])
+
+  return (
+    <>
+      {enableServerSidePagination ? (
+        <ListWidgetWithServerPagination
+          {...props}
+          copyComponents={getChildrenNodes}
+          selectIndexForMark={selectIndexForMark}
+          handleUpdateSelectedItem={handleUpdateSelectedItem}
+        />
+      ) : (
+        <ListWidgetWithAutoPagination
+          {...props}
+          copyComponents={getChildrenNodes}
+          selectIndexForMark={selectIndexForMark}
+          handleUpdateSelectedItem={handleUpdateSelectedItem}
+        />
+      )}
+      {loading && <ComponentLoading themeColor={themeColor} />}
+    </>
   )
 }
 

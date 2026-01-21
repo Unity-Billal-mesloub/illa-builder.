@@ -1,3 +1,5 @@
+import { ComponentMapNode } from "@illa-public/public-types"
+import { CONTAINER_TYPE } from "@illa-public/public-types"
 import { AnyAction, Unsubscribe, isAnyOf } from "@reduxjs/toolkit"
 import { REDUX_ACTION_FROM } from "@/middleware/undoRedo/interface"
 import {
@@ -8,28 +10,23 @@ import {
 import { getNewPositionWithCrossing } from "@/page/App/components/DotPanel/utils/crossingHelper"
 import { combineWidgetInfos } from "@/page/App/components/DotPanel/utils/getDragShadow"
 import { configActions } from "@/redux/config/configSlice"
-import { actionActions } from "@/redux/currentApp/action/actionSlice"
 import { handleClearSelectedComponentExecution } from "@/redux/currentApp/collaborators/collaboratorsHandlers"
 import {
-  getCanvas,
+  getComponentMap,
   getGlobalDataToActionList,
+  searchComponentFromMap,
   searchDSLByDisplayName,
-  searchDsl,
 } from "@/redux/currentApp/components/componentsSelector"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
 import { cursorActions } from "@/redux/currentApp/cursor/cursorSlice"
-import {
-  getExecutionResult,
-  getExecutionWidgetLayoutInfo,
-  getInDependenciesMap,
-  getRawTree,
-} from "@/redux/currentApp/executionTree/executionSelector"
+import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
 import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
-import { WidgetLayoutInfo } from "@/redux/currentApp/executionTree/executionState"
 import { AppListenerEffectAPI, AppStartListening } from "@/store"
-import { changeDisplayNameHelper } from "@/utils/changeDisplayNameHelper"
+import { mixedChangeDisplayNameHelper } from "@/utils/changeDisplayNameHelper"
 import IllaUndoRedoManager from "@/utils/undoRedo/undo"
-import { CONTAINER_TYPE, ComponentNode } from "./componentsState"
+import { getClientWidgetLayoutInfo } from "../layoutInfo/layoutInfoSelector"
+import { layoutInfoActions } from "../layoutInfo/layoutInfoSlice"
+import { WidgetLayoutInfo } from "../layoutInfo/layoutInfoState"
 
 function handleUpdateComponentDisplayNameEffect(
   action: ReturnType<
@@ -39,8 +36,8 @@ function handleUpdateComponentDisplayNameEffect(
 ) {
   const { newDisplayName } = action.payload
   const rootState = listenApi.getState()
-  const rootNode = getCanvas(rootState)
-  const newComponent = searchDsl(rootNode, newDisplayName)
+  const components = getComponentMap(rootState)
+  const newComponent = searchComponentFromMap(components, newDisplayName)
   if (
     newComponent &&
     newComponent.containerType === CONTAINER_TYPE.EDITOR_SCALE_SQUARE
@@ -139,12 +136,12 @@ const updateComponentReflowComponentsAdapter = (
   action: ReturnType<
     | typeof componentsActions.addComponentReducer
     | typeof componentsActions.updateComponentLayoutInfoReducer
-    | typeof componentsActions.updateComponentContainerReducer
+    | typeof componentsActions.updateComponentPositionReducer
   >,
   currentLayoutInfo: Record<string, WidgetLayoutInfo>,
 ) => {
   switch (action.type) {
-    case "components/updateComponentContainerReducer": {
+    case "components/updateComponentPositionReducer": {
       const { newParentNodeDisplayName, updateSlices } = action.payload
       const square = combineWidgetInfos(updateSlices)
       const effectedDisplayNames = updateSlices.map(
@@ -218,12 +215,12 @@ function handleUpdateComponentReflowEffect(
   action: AnyAction,
   listenApi: AppListenerEffectAPI,
 ) {
-  const currentLayoutInfo = getExecutionWidgetLayoutInfo(listenApi.getState())
+  const currentLayoutInfo = getClientWidgetLayoutInfo(listenApi.getState())
   const updateComponents = updateComponentReflowComponentsAdapter(
     action as ReturnType<
       | typeof componentsActions.addComponentReducer
       | typeof componentsActions.updateComponentLayoutInfoReducer
-      | typeof componentsActions.updateComponentContainerReducer
+      | typeof componentsActions.updateComponentPositionReducer
     >,
     currentLayoutInfo,
   )
@@ -295,14 +292,16 @@ const handleUpdateHeightEffect = (
 ) => {
   const { displayName, height, oldHeight } = action.payload
   const rootState = listenerApi.getState()
-  const rootNode = getCanvas(rootState)
-  const newItem = searchDsl(rootNode, displayName)
+  const components = getComponentMap(rootState)
+  const newItem = searchComponentFromMap(components, displayName)
   if (!newItem) return
   const parentNodeDisplayName = newItem.parentNode
-  const target = searchDsl(rootNode, parentNodeDisplayName)
-  let allComponents: ComponentNode[] = []
+  const target = searchComponentFromMap(components, parentNodeDisplayName)
+  let allComponents: ComponentMapNode[] = []
   if (target) {
-    allComponents = target.childrenNode
+    allComponents = target.childrenNode.map(
+      (displayName) => components[displayName],
+    )
   }
 
   const cloneDeepAllComponents = allComponents.filter(
@@ -354,31 +353,12 @@ const handleUpdateDisplayNameEffect = (
   listenerApi: AppListenerEffectAPI,
 ) => {
   const { displayName, newDisplayName } = action.payload
-  const rootState = listenerApi.getState()
-  const independenciesMap = getInDependenciesMap(rootState)
-  const seeds = getRawTree(rootState)
-
-  const { updateActionSlice, updateWidgetSlice } = changeDisplayNameHelper(
-    independenciesMap,
-    seeds,
-    displayName,
-    newDisplayName,
-  )
-
+  mixedChangeDisplayNameHelper(listenerApi, displayName, newDisplayName)
   listenerApi.dispatch(
-    executionActions.updateWidgetLayoutInfoWhenChangeDisplayNameReducer({
+    layoutInfoActions.updateWidgetLayoutInfoWhenChangeDisplayNameReducer({
       oldDisplayName: displayName,
       newDisplayName,
     }),
-  )
-
-  listenerApi.dispatch(
-    componentsActions.batchUpdateMultiComponentSlicePropsReducer(
-      updateWidgetSlice,
-    ),
-  )
-  listenerApi.dispatch(
-    actionActions.batchUpdateMultiActionSlicePropsReducer(updateActionSlice),
   )
 }
 
@@ -395,24 +375,7 @@ const handleUpdateGlobalDataDisplayNameEffect = (
   )
   if (!currentGlobalData) return
   listenerApi.dispatch(configActions.changeSelectedAction(currentGlobalData))
-  const independenciesMap = getInDependenciesMap(rootState)
-  const seeds = getRawTree(rootState)
-  const { updateActionSlice, updateWidgetSlice } = changeDisplayNameHelper(
-    independenciesMap,
-    seeds,
-    oldKey,
-    key,
-    "globalDataKey",
-  )
-
-  listenerApi.dispatch(
-    componentsActions.batchUpdateMultiComponentSlicePropsReducer(
-      updateWidgetSlice,
-    ),
-  )
-  listenerApi.dispatch(
-    actionActions.batchUpdateMultiActionSlicePropsReducer(updateActionSlice),
-  )
+  mixedChangeDisplayNameHelper(listenerApi, oldKey, key, "globalDataKey")
 }
 
 const handlerUpdateViewportSizeEffect = (
@@ -429,6 +392,7 @@ const updateSubPagePathEffect = (
   const { pageName, subPagePath, oldSubPagePath } = action.payload
   const oldExecutionResult = getExecutionResult(listenApi.getState())
   const rootNode = oldExecutionResult.root
+  mixedChangeDisplayNameHelper(listenApi, oldSubPagePath, subPagePath)
   if (rootNode.currentSubPagePath === oldSubPagePath) {
     listenApi.dispatch(
       executionActions.updateCurrentPagePathReducer({
@@ -469,7 +433,7 @@ export function setupComponentsListeners(
         componentsActions.addComponentReducer,
         componentsActions.updateComponentLayoutInfoReducer,
         componentsActions.batchUpdateComponentLayoutInfoReducer,
-        componentsActions.updateComponentContainerReducer,
+        componentsActions.updateComponentPositionReducer,
       ),
       effect: handleUpdateComponentReflowEffect,
     }),

@@ -1,6 +1,16 @@
 import { ResourceCard, TeamContentEmpty } from "@illa-public/dashboard"
+import { USER_ROLE } from "@illa-public/public-types"
 import { ResourceTypeSelector } from "@illa-public/resource-generator"
-import { getCurrentId } from "@illa-public/user-data"
+import {
+  getCurrentId,
+  getCurrentTeamInfo,
+  getPlanUtils,
+} from "@illa-public/user-data"
+import {
+  ACTION_ACCESS,
+  ATTRIBUTE_GROUP,
+  canAccess,
+} from "@illa-public/user-role-utils"
 import { getAuthToken, getILLABuilderURL } from "@illa-public/utils"
 import { FC, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -18,7 +28,17 @@ import { cardContainerStyle, resourceContainerStyle } from "./style"
 
 export const PCResourcesWorkspace: FC = () => {
   const { t } = useTranslation()
-  const { data: resourceList = [], isLoading } = useResourceList()
+  const currentTeamInfo = useSelector(getCurrentTeamInfo)
+
+  const canAccessResourceList = canAccess(
+    currentTeamInfo?.myRole ?? USER_ROLE.VIEWER,
+    ATTRIBUTE_GROUP.RESOURCE,
+    getPlanUtils(currentTeamInfo),
+    ACTION_ACCESS.VIEW,
+  )
+  const { data: resourceList = [], isLoading } = useResourceList(
+    canAccessResourceList,
+  )
   const { teamIdentifier } = useParams()
   const currentTeamID = useSelector(getCurrentId)!
 
@@ -51,7 +71,7 @@ export const PCResourcesWorkspace: FC = () => {
       },
     }
     return mutate(
-      ["/resources", currentTeamID],
+      ["/resources", currentTeamID, canAccessResourceList],
       async (resourceList) => {
         const response = await fetchDeleteResource(resourceID, currentTeamID)
         if (Array.isArray(resourceList))

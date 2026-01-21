@@ -10,7 +10,7 @@
       "databaseName": "illa_demo",
       "databasePassword": "illa2022",
       "databaseUsername": "illa",
-      "host": "143.198.231.148",
+      "host": "onboarding-postgres01v.illacloud.com",
       "port": "30739",
       "ssl": {
         "clientCert": "",

@@ -1,9 +1,8 @@
 import { Avatar } from "@illa-public/avatar"
 import { CodeEditor } from "@illa-public/code-editor"
+import IconHotSpot from "@illa-public/icon-hot-spot"
 import { ShareAgentPC } from "@illa-public/invite-modal"
 import {
-  AI_AGENT_TYPE,
-  Agent,
   MarketAIAgent,
   getAIAgentMarketplaceInfo,
   getLLM,
@@ -14,10 +13,16 @@ import {
   ILLA_MIXPANEL_EVENT_TYPE,
   MixpanelTrackProvider,
 } from "@illa-public/mixpanel-utils"
+import {
+  AI_AGENT_TYPE,
+  Agent,
+  MemberInfo,
+  USER_ROLE,
+  USER_STATUS,
+} from "@illa-public/public-types"
 import { RecordEditor } from "@illa-public/record-editor"
 import { useUpgradeModal } from "@illa-public/upgrade-modal"
 import {
-  USER_ROLE,
   getCurrentTeamInfo,
   getCurrentUser,
   getPlanUtils,
@@ -36,10 +41,13 @@ import {
 import {
   formatNumForAgent,
   getAgentPublicLink,
+  getAuthToken,
   getILLABuilderURL,
+  getILLACloudURL,
 } from "@illa-public/utils"
-import { getAuthToken } from "@illa-public/utils"
-import { FC, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
+import { FC, useEffect, useRef, useState } from "react"
+import { Helmet } from "react-helmet-async"
 import { Controller, useForm, useFormState } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
@@ -52,6 +60,7 @@ import {
 import { v4 } from "uuid"
 import {
   Button,
+  CloseIcon,
   DependencyIcon,
   ForkIcon,
   PlayFillIcon,
@@ -63,13 +72,18 @@ import {
   getColor,
   useMessage,
 } from "@illa-design/react"
+import { createAction } from "@/api/actions"
 import { TextSignal } from "@/api/ws/textSignal"
+import GridFillIcon from "@/assets/agent/gridFill.svg?react"
+import { FullPageLoading } from "@/components/FullPageLoading"
+import { buildActionInfo, buildAppWithAgentSchema } from "@/config/AppWithAgent"
 import AIAgentBlock from "@/page/AI/components/AIAgentBlock"
 import { PreviewChat } from "@/page/AI/components/PreviewChat"
 import { ChatSendRequestPayload } from "@/page/AI/components/PreviewChat/interface"
 import { useAgentConnect } from "@/page/AI/components/ws/useAgentConnect"
 import { CollaboratorsInfo } from "@/redux/currentApp/collaborators/collaboratorsState"
 import { forkAIAgentToTeam, starAIAgent, unstarAIAgent } from "@/services/agent"
+import { fetchCreateApp } from "@/services/apps"
 import { copyToClipboard } from "@/utils/copyToClipboard"
 import { track } from "@/utils/mixpanelHelper"
 import { ChatContext } from "../../components/ChatContext"
@@ -88,6 +102,7 @@ import {
   backMenuStyle,
   backTextStyle,
   buttonContainerStyle,
+  closeIconStyle,
   labelLogoStyle,
   labelStyle,
   leftPanelContainerStyle,
@@ -111,6 +126,7 @@ export const AIAgentRunPC: FC = () => {
     mode: "onSubmit",
     defaultValues: agent,
   })
+  const formRef = useRef<HTMLFormElement>(null)
 
   const { isDirty, isValid } = useFormState({
     control,
@@ -139,7 +155,7 @@ export const AIAgentRunPC: FC = () => {
   )
   const upgradeModal = useUpgradeModal()
 
-  const { ownerTeamIdentifier } = useParams()
+  const { ownerTeamIdentifier, agentID } = useParams()
   const [searchParams] = useSearchParams()
 
   // premium dialog
@@ -150,11 +166,64 @@ export const AIAgentRunPC: FC = () => {
     currentTeamInfo?.totalTeamLicense?.teamLicenseAllPaid,
   )
 
-  const teamInfo = useSelector(getCurrentTeamInfo)!!
+  // ui state
+  const [isFullPageLoading, setIsFullPageLoading] = useState(false)
+  const canShowInviteButton = showShareAgentModal(
+    currentTeamInfo,
+    agent.teamID === currentTeamInfo.id
+      ? currentTeamInfo.myRole
+      : USER_ROLE.GUEST,
+    getValues("publishedToMarketplace"),
+  )
+
+  const [showEditPanel, setShowEditPanel] = useState(true)
 
   const { t } = useTranslation()
 
   const dispatch = useDispatch()
+
+  const handleCloseEditPanel = () => {
+    setShowEditPanel(false)
+  }
+
+  const handleClickBack = () => {
+    const cloud_url = getILLACloudURL(window.customDomain)
+    if (document.referrer.includes(cloud_url)) {
+      return (location.href = `${cloud_url}/workspace/${ownerTeamIdentifier}/ai-agents`)
+    }
+    if (
+      document.referrer.includes(import.meta.env.ILLA_MARKET_URL) &&
+      agentID
+    ) {
+      return (location.href = `${
+        import.meta.env.ILLA_MARKET_URL
+      }/ai-agent/${agentID}/detail`)
+    }
+    return (location.href = cloud_url)
+  }
+
+  const handleSubmitClick = handleSubmit(async (data) => {
+    if (isPremiumModel(data.model) && !canUseBillingFeature) {
+      upgradeModal({
+        modalType: "agent",
+        from: "agent_run_gpt4",
+      })
+      return
+    }
+    reset(data)
+    track(
+      ILLA_MIXPANEL_EVENT_TYPE.CLICK,
+      ILLA_MIXPANEL_BUILDER_PAGE_NAME.AI_AGENT_RUN,
+      {
+        element: isRunning ? "restart" : "start",
+        parameter1: data.agentType === 1 ? "chat" : "text",
+        parameter5: agent.aiAgentID,
+      },
+    )
+    isRunning
+      ? await reconnect(data.aiAgentID, data.agentType)
+      : await connect(data.aiAgentID, data.agentType)
+  })
 
   const dialog = (
     <Controller
@@ -167,11 +236,27 @@ export const AIAgentRunPC: FC = () => {
         >
           {shareDialogVisible && (
             <ShareAgentPC
+              itemID={agent.aiAgentID}
+              onInvitedChange={(userList) => {
+                const memberListInfo: MemberInfo[] = userList.map((user) => {
+                  return {
+                    ...user,
+                    userID: "",
+                    nickname: "",
+                    avatar: "",
+                    userStatus: USER_STATUS.PENDING,
+                    permission: {},
+                    createdAt: "",
+                    updatedAt: "",
+                  }
+                })
+                dispatch(teamActions.updateInvitedUserReducer(memberListInfo))
+              }}
               canUseBillingFeature={canUseUpgradeFeature(
-                teamInfo.myRole,
-                getPlanUtils(teamInfo),
-                teamInfo.totalTeamLicense.teamLicensePurchased,
-                teamInfo.totalTeamLicense.teamLicenseAllPaid,
+                currentTeamInfo.myRole,
+                getPlanUtils(currentTeamInfo),
+                currentTeamInfo.totalTeamLicense.teamLicensePurchased,
+                currentTeamInfo.totalTeamLicense.teamLicenseAllPaid,
               )}
               title={t(
                 "user_management.modal.social_media.default_text.agent",
@@ -179,28 +264,32 @@ export const AIAgentRunPC: FC = () => {
                   agentName: agent.name,
                 },
               )}
-              redirectURL={`${getILLABuilderURL()}/${ownerTeamIdentifier}/ai-agent/${
+              redirectURL={`${getILLABuilderURL(
+                window.customDomain,
+              )}/${ownerTeamIdentifier}/ai-agent/${
                 agent.aiAgentID
               }/run?myTeamIdentifier=${searchParams.get("myTeamIdentifier")}`}
               onClose={() => {
                 setShareDialogVisible(false)
               }}
               canInvite={canManageInvite(
-                teamInfo.myRole,
-                teamInfo.permission.allowEditorManageTeamMember,
-                teamInfo.permission.allowViewerManageTeamMember,
+                currentTeamInfo.myRole,
+                currentTeamInfo.permission.allowEditorManageTeamMember,
+                currentTeamInfo.permission.allowViewerManageTeamMember,
               )}
               defaultInviteUserRole={USER_ROLE.VIEWER}
-              teamID={teamInfo.id}
-              currentUserRole={teamInfo.myRole}
-              defaultBalance={teamInfo.currentTeamLicense.balance}
-              defaultAllowInviteLink={teamInfo.permission.inviteLinkEnabled}
+              teamID={currentTeamInfo.id}
+              currentUserRole={currentTeamInfo.myRole}
+              defaultBalance={currentTeamInfo.currentTeamLicense.balance}
+              defaultAllowInviteLink={
+                currentTeamInfo.permission.inviteLinkEnabled
+              }
               onInviteLinkStateChange={(enableInviteLink) => {
                 dispatch(
                   teamActions.updateTeamMemberPermissionReducer({
-                    teamID: teamInfo.id,
+                    teamID: currentTeamInfo.id,
                     newPermission: {
-                      ...teamInfo.permission,
+                      ...currentTeamInfo.permission,
                       inviteLinkEnabled: enableInviteLink,
                     },
                   }),
@@ -217,6 +306,8 @@ export const AIAgentRunPC: FC = () => {
                   )
                   newUrl.searchParams.set("token", getAuthToken())
                   window.open(newUrl, "_blank")
+                } else {
+                  setCurrentMarketplaceInfo(undefined)
                 }
                 field.onChange(isAgentContributed)
               }}
@@ -232,7 +323,7 @@ export const AIAgentRunPC: FC = () => {
                 copyToClipboard(
                   t("user_management.modal.custom_copy_text_agent_invite", {
                     userName: currentUserInfo.nickname,
-                    teamName: teamInfo.name,
+                    teamName: currentTeamInfo.name,
                     inviteLink: link,
                   }),
                 )
@@ -262,9 +353,9 @@ export const AIAgentRunPC: FC = () => {
               onBalanceChange={(balance) => {
                 dispatch(
                   teamActions.updateTeamMemberSubscribeReducer({
-                    teamID: teamInfo.id,
+                    teamID: currentTeamInfo.id,
                     subscribeInfo: {
-                      ...teamInfo.currentTeamLicense,
+                      ...currentTeamInfo.currentTeamLicense,
                       balance: balance,
                     },
                   }),
@@ -332,17 +423,23 @@ export const AIAgentRunPC: FC = () => {
       },
     })
 
+  useEffect(() => {
+    canShowInviteButton &&
+      track(
+        ILLA_MIXPANEL_EVENT_TYPE.SHOW,
+        ILLA_MIXPANEL_BUILDER_PAGE_NAME.AI_AGENT_RUN,
+        {
+          element: "invite_entry",
+        },
+      )
+  }, [canShowInviteButton])
   const menu = (
     <Controller
       control={control}
       name="publishedToMarketplace"
       render={({ field }) => (
         <div css={agentMenuContainerStyle}>
-          {showShareAgentModal(
-            teamInfo,
-            agent.teamID === teamInfo.id ? teamInfo.myRole : USER_ROLE.GUEST,
-            field.value,
-          ) && (
+          {canShowInviteButton && (
             <Button
               colorScheme="grayBlue"
               leftIcon={<DependencyIcon />}
@@ -351,13 +448,13 @@ export const AIAgentRunPC: FC = () => {
                   ILLA_MIXPANEL_EVENT_TYPE.CLICK,
                   ILLA_MIXPANEL_BUILDER_PAGE_NAME.AI_AGENT_RUN,
                   {
-                    element: "share",
+                    element: "invite_entry",
                     parameter5: agent.aiAgentID,
                   },
                 )
                 if (
                   !openShareAgentModal(
-                    teamInfo,
+                    currentTeamInfo,
                     currentTeamInfo.id === agent.teamID
                       ? currentTeamInfo.myRole
                       : USER_ROLE.GUEST,
@@ -366,6 +463,7 @@ export const AIAgentRunPC: FC = () => {
                 ) {
                   upgradeModal({
                     modalType: "upgrade",
+                    from: "agent_run_share",
                   })
                   return
                 }
@@ -450,7 +548,7 @@ export const AIAgentRunPC: FC = () => {
                   try {
                     const newAgent = await forkAIAgentToTeam(agent.aiAgentID)
                     navigate(
-                      `/${teamInfo.identifier}/ai-agent/${newAgent.data.aiAgentID}`,
+                      `/${currentTeamInfo.identifier}/ai-agent/${newAgent.data.aiAgentID}`,
                     )
                   } catch (e) {
                     message.error({
@@ -472,329 +570,378 @@ export const AIAgentRunPC: FC = () => {
                 )}
               </Button>
             )}
+          {canManage(
+            currentTeamInfo.myRole,
+            ATTRIBUTE_GROUP.APP,
+            getPlanUtils(currentTeamInfo),
+            ACTION_MANAGE.CREATE_APP,
+          ) && (
+            <Button
+              ml="8px"
+              colorScheme="grayBlue"
+              loading={forkLoading}
+              leftIcon={<GridFillIcon />}
+              onClick={async () => {
+                try {
+                  setIsFullPageLoading(true)
+                  const finalAgent =
+                    agent.teamID === currentTeamInfo.id
+                      ? agent
+                      : (await forkAIAgentToTeam(agent.aiAgentID)).data
+
+                  const variableKeys = finalAgent.variables.map((v) => v.key)
+                  const { appInfo, variableKeyMapInputNodeDisplayName } =
+                    buildAppWithAgentSchema(variableKeys)
+                  const appInfoResp = await fetchCreateApp({
+                    appName: "Untitled app",
+                    initScheme: appInfo,
+                  })
+                  const agentActionInfo = buildActionInfo(
+                    agent,
+                    variableKeyMapInputNodeDisplayName,
+                  )
+                  await createAction(appInfoResp.data.appId, agentActionInfo)
+                  window.open(
+                    `${getILLABuilderURL(window.customDomain)}/${
+                      currentTeamInfo.identifier
+                    }/app/${appInfoResp.data.appId}`,
+                    "_blank",
+                  )
+                } catch {
+                  message.error({
+                    content: t("create_fail"),
+                  })
+                } finally {
+                  setIsFullPageLoading(false)
+                }
+              }}
+            >
+              <span>{t("marketplace.agent.create_app")}</span>
+            </Button>
+          )}
         </div>
       )}
     />
   )
 
   return (
-    <ChatContext.Provider value={{ inRoomUsers }}>
-      <div css={aiAgentContainerStyle}>
-        <div css={leftPanelContainerStyle}>
-          <div css={agentTopContainerStyle}>
-            <div
-              css={backMenuStyle}
-              onClick={() => {
-                navigate(-1)
-              }}
-            >
-              <PreviousIcon fs="16px" />
-              <div css={backTextStyle}>{t("back")}</div>
-            </div>
-            <div css={agentTitleContainerStyle}>
-              <Controller
-                control={control}
-                name="icon"
-                render={({ field }) => (
-                  <Avatar css={agentAvatarStyle} avatarUrl={field.value} />
-                )}
-              />
-              <Controller
-                control={control}
-                name="name"
-                render={({ field }) => (
-                  <div css={agentNicknameStyle}>{field.value}</div>
-                )}
-              />
-            </div>
-            <Controller
-              control={control}
-              name="description"
-              render={({ field }) => (
-                <div css={agentDescStyle}>{field.value}</div>
-              )}
-            />
-            <div css={agentTeamInfoContainerStyle}>
-              <Controller
-                control={control}
-                name="teamIcon"
-                render={({ field }) => (
-                  <Avatar css={agentTeamAvatarStyle} avatarUrl={field.value} />
-                )}
-              />
-              <Controller
-                control={control}
-                name="teamName"
-                render={({ field }) => (
-                  <div css={agentTeamNameStyle}>{field.value}</div>
-                )}
-              />
-            </div>
-            {menu}
-          </div>
-          <div css={agentControlContainerStyle}>
-            <Controller
-              name="agentType"
-              control={control}
-              shouldUnregister={false}
-              render={({ field }) => (
-                <AIAgentBlock
-                  title={t("editor.ai-agent.label.mode")}
-                  tips={t("editor.ai-agent.tips.mode")}
-                >
-                  <RadioGroup
-                    value={field.value}
-                    colorScheme={getColor("grayBlue", "02")}
-                    w="100%"
-                    type="button"
-                    forceEqualWidth={true}
-                    options={[
-                      {
-                        value: AI_AGENT_TYPE.CHAT,
-                        label: t("editor.ai-agent.option.mode.chat"),
-                      },
-                      {
-                        value: AI_AGENT_TYPE.TEXT_GENERATION,
-                        label: t("editor.ai-agent.option.mode.text"),
-                      },
-                    ]}
-                    onChange={(value) => {
-                      if (isReceiving || isConnecting) {
-                        message.info({
-                          content: t("editor.ai-agent.message.generating"),
-                        })
-                        return
-                      }
-                      track(
-                        ILLA_MIXPANEL_EVENT_TYPE.CLICK,
-                        ILLA_MIXPANEL_BUILDER_PAGE_NAME.AI_AGENT_RUN,
-                        {
-                          element: "mode_radio_button",
-                          parameter1: value,
-                          parameter5: agent.aiAgentID,
-                        },
-                      )
-                      field.onChange(value)
-                    }}
-                  />
-                </AIAgentBlock>
-              )}
-            />
-            <Controller
-              name="prompt"
-              control={control}
-              shouldUnregister={false}
-              render={({ field: promptField }) => (
-                <Controller
-                  name="variables"
-                  control={control}
-                  render={({ field: variables }) => (
-                    <AIAgentBlock title={"Prompt"}>
-                      <CodeEditor
-                        {...promptField}
-                        editable={false}
-                        completionOptions={variables.value}
-                      />
-                    </AIAgentBlock>
-                  )}
-                />
-              )}
-            />
-            <Controller
-              name="variables"
-              control={control}
-              rules={{
-                validate: (value) =>
-                  value.every(
-                    (param) => param.key !== "" && param.value !== "",
-                  ) ||
-                  (value.length === 1 &&
-                    value[0].key === "" &&
-                    value[0].value === ""),
-              }}
-              shouldUnregister={false}
-              render={({ field }) =>
-                field.value.length > 0 ? (
-                  <AIAgentBlock title={t("editor.ai-agent.label.variable")}>
-                    <RecordEditor
-                      fillOnly
-                      records={field.value}
-                      onChangeKey={(index, key) => {
-                        const newVariables = [...field.value]
-                        newVariables[index].key = key
-                        field.onChange(newVariables)
-                      }}
-                      onChangeValue={(index, _, value) => {
-                        const newVariables = [...field.value]
-                        newVariables[index].value = value
-                        field.onChange(newVariables)
-                      }}
-                      onAdd={() => {}}
-                      onDelete={() => {}}
-                      label={""}
-                    />
-                  </AIAgentBlock>
-                ) : (
-                  <></>
-                )
-              }
-            />
-            <Controller
-              name="model"
-              control={control}
-              render={({ field }) => (
-                <AIAgentBlock title={t("editor.ai-agent.label.model")}>
-                  <div css={labelStyle}>
-                    <span css={labelLogoStyle}>
-                      {getLLM(field.value)?.logo}
-                    </span>
-                    <span css={readOnlyTextStyle}>
-                      {getLLM(field.value)?.name}
-                    </span>
-                  </div>
-                </AIAgentBlock>
-              )}
-            />
-            <Controller
-              name={"modelConfig.maxTokens"}
-              control={control}
-              shouldUnregister={false}
-              render={({ field }) => (
-                <AIAgentBlock
-                  title={"Max Token"}
-                  tips={t("editor.ai-agent.tips.max-token")}
-                >
-                  <div css={readOnlyTextStyle}>{field.value}</div>
-                </AIAgentBlock>
-              )}
-            />
-            <Controller
-              name="modelConfig.temperature"
-              control={control}
-              shouldUnregister={false}
-              render={({ field }) => (
-                <AIAgentBlock
-                  title={"Temperature"}
-                  tips={t("editor.ai-agent.tips.temperature")}
-                >
-                  <div css={readOnlyTextStyle}>{field.value}</div>
-                </AIAgentBlock>
-              )}
-            />
-          </div>
-          <form
-            onSubmit={handleSubmit(async (data) => {
-              if (isPremiumModel(data.model) && !canUseBillingFeature) {
-                upgradeModal({
-                  modalType: "agent",
-                })
-                return
-              }
-              reset(data)
-              track(
-                ILLA_MIXPANEL_EVENT_TYPE.CLICK,
-                ILLA_MIXPANEL_BUILDER_PAGE_NAME.AI_AGENT_RUN,
-                {
-                  element: isRunning ? "restart" : "start",
-                  parameter1: data.agentType === 1 ? "chat" : "text",
-                  parameter5: agent.aiAgentID,
-                },
-              )
-              isRunning
-                ? await reconnect(data.aiAgentID, data.agentType)
-                : await connect(data.aiAgentID, data.agentType)
-            })}
-          >
-            <div css={buttonContainerStyle}>
-              <Button
-                size="large"
-                flex="1"
-                disabled={!isValid}
-                loading={isConnecting}
-                ml="8px"
-                colorScheme={getColor("grayBlue", "02")}
-                leftIcon={isRunning ? <ResetIcon /> : <PlayFillIcon />}
+    <>
+      <Helmet>
+        <title>{agent.name}</title>
+      </Helmet>
+      <ChatContext.Provider value={{ inRoomUsers }}>
+        <div css={aiAgentContainerStyle}>
+          <AnimatePresence mode="wait" initial={false}>
+            {showEditPanel && (
+              <motion.div
+                css={leftPanelContainerStyle}
+                initial={{
+                  opacity: 0,
+                  x: "-100%",
+                  position: "absolute",
+                }}
+                animate={{
+                  opacity: 1,
+                  x: 0,
+                  position: "relative",
+                  transition: { duration: 0.3 },
+                }}
+                exit={{
+                  opacity: 0,
+                  x: "-100%",
+                  position: "absolute",
+                }}
               >
-                {!isRunning
-                  ? t("editor.ai-agent.start")
-                  : t("editor.ai-agent.restart")}
-              </Button>
-            </div>
-          </form>
-        </div>
-        <Controller
-          name="agentType"
-          control={control}
-          shouldUnregister={false}
-          render={({ field }) => (
-            <Controller
-              control={control}
-              name="publishedToMarketplace"
-              render={({ field: contributedField }) => (
-                <div css={rightPanelContainerStyle}>
-                  <PreviewChat
-                    showShareDialog={showShareAgentModalOnlyForShare(teamInfo)}
-                    showContributeDialog={showShareAgentModal(
-                      teamInfo,
-                      agent.teamID === teamInfo.id
-                        ? teamInfo.myRole
-                        : USER_ROLE.GUEST,
-                      contributedField.value,
+                <div css={agentTopContainerStyle}>
+                  <div css={backMenuStyle}>
+                    <div onClick={handleClickBack}>
+                      <PreviousIcon fs="16px" />
+                      <div css={backTextStyle}>{t("back")}</div>
+                    </div>
+                    <IconHotSpot
+                      onClick={handleCloseEditPanel}
+                      css={closeIconStyle}
+                    >
+                      <CloseIcon size="12px" />
+                    </IconHotSpot>
+                  </div>
+                  <div css={agentTitleContainerStyle}>
+                    <Controller
+                      control={control}
+                      name="icon"
+                      render={({ field }) => (
+                        <Avatar
+                          css={agentAvatarStyle}
+                          avatarUrl={field.value}
+                        />
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="name"
+                      render={({ field }) => (
+                        <div css={agentNicknameStyle}>{field.value}</div>
+                      )}
+                    />
+                  </div>
+                  <Controller
+                    control={control}
+                    name="description"
+                    render={({ field }) => (
+                      <div css={agentDescStyle}>{field.value}</div>
                     )}
-                    isRunning={isRunning}
-                    hasCreated={true}
-                    isMobile={false}
-                    editState="RUN"
-                    agentType={field.value}
-                    chatMessages={chatMessages}
-                    generationMessage={generationMessage}
-                    isReceiving={isReceiving}
-                    blockInput={!isRunning || isDirty}
-                    onSendMessage={(message, agentType: AI_AGENT_TYPE) => {
-                      track(
-                        ILLA_MIXPANEL_EVENT_TYPE.CLICK,
-                        ILLA_MIXPANEL_BUILDER_PAGE_NAME.AI_AGENT_RUN,
-                        {
-                          element: "send",
-                          parameter5: agent.aiAgentID,
-                        },
-                      )
-                      sendMessage(
-                        {
-                          threadID: message.threadID,
-                          prompt: message.message,
-                          variables: [],
-                          modelConfig: getValues("modelConfig"),
-                          model: getValues("model"),
-                          agentType: getValues("agentType"),
-                          actionID: getValues("aiAgentID"),
-                        } as ChatSendRequestPayload,
-                        TextSignal.RUN,
-                        agentType,
-                        "chat",
-                        true,
-                        message,
-                      )
+                  />
+                  <div css={agentTeamInfoContainerStyle}>
+                    <Controller
+                      control={control}
+                      name="teamIcon"
+                      render={({ field }) => (
+                        <Avatar
+                          css={agentTeamAvatarStyle}
+                          avatarUrl={field.value}
+                        />
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="teamName"
+                      render={({ field }) => (
+                        <div css={agentTeamNameStyle}>{field.value}</div>
+                      )}
+                    />
+                  </div>
+                  {menu}
+                </div>
+                <div css={agentControlContainerStyle}>
+                  <Controller
+                    name="agentType"
+                    control={control}
+                    shouldUnregister={false}
+                    render={({ field }) => (
+                      <AIAgentBlock
+                        title={t("editor.ai-agent.label.mode")}
+                        tips={t("editor.ai-agent.tips.mode")}
+                      >
+                        <RadioGroup
+                          value={field.value}
+                          colorScheme={getColor("grayBlue", "02")}
+                          w="100%"
+                          type="button"
+                          forceEqualWidth={true}
+                          options={[
+                            {
+                              value: AI_AGENT_TYPE.CHAT,
+                              label: t("editor.ai-agent.option.mode.chat"),
+                            },
+                            {
+                              value: AI_AGENT_TYPE.TEXT_GENERATION,
+                              label: t("editor.ai-agent.option.mode.text"),
+                            },
+                          ]}
+                          onChange={(value) => {
+                            if (isReceiving || isConnecting) {
+                              message.info({
+                                content: t(
+                                  "editor.ai-agent.message.generating",
+                                ),
+                              })
+                              return
+                            }
+                            track(
+                              ILLA_MIXPANEL_EVENT_TYPE.CLICK,
+                              ILLA_MIXPANEL_BUILDER_PAGE_NAME.AI_AGENT_RUN,
+                              {
+                                element: "mode_radio_button",
+                                parameter1: value,
+                                parameter5: agent.aiAgentID,
+                              },
+                            )
+                            field.onChange(value)
+                          }}
+                        />
+                      </AIAgentBlock>
+                    )}
+                  />
+                  <Controller
+                    name="prompt"
+                    control={control}
+                    shouldUnregister={false}
+                    render={({ field: promptField }) => (
+                      <Controller
+                        name="variables"
+                        control={control}
+                        render={({ field: variables }) => (
+                          <AIAgentBlock title={"Prompt"}>
+                            <CodeEditor
+                              {...promptField}
+                              editable={false}
+                              completionOptions={variables.value}
+                            />
+                          </AIAgentBlock>
+                        )}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="variables"
+                    control={control}
+                    rules={{
+                      validate: (value) =>
+                        value.every(
+                          (param) => param.key !== "" && param.value !== "",
+                        ) ||
+                        (value.length === 1 &&
+                          value[0].key === "" &&
+                          value[0].value === ""),
                     }}
-                    onCancelReceiving={() => {
-                      sendMessage(
-                        {} as ChatSendRequestPayload,
-                        TextSignal.STOP_ALL,
-                        field.value,
-                        "stop_all",
-                        false,
+                    shouldUnregister={false}
+                    render={({ field }) =>
+                      field.value.length > 0 ? (
+                        <AIAgentBlock
+                          title={t("editor.ai-agent.label.variable")}
+                        >
+                          <RecordEditor
+                            fillOnly
+                            records={field.value}
+                            onChangeKey={(index, key) => {
+                              const newVariables = [...field.value]
+                              newVariables[index].key = key
+                              field.onChange(newVariables)
+                            }}
+                            onChangeValue={(index, _, value) => {
+                              const newVariables = [...field.value]
+                              newVariables[index].value = value
+                              field.onChange(newVariables)
+                            }}
+                            onAdd={() => {}}
+                            onDelete={() => {}}
+                            label={""}
+                          />
+                        </AIAgentBlock>
+                      ) : (
+                        <></>
                       )
-                      setIsReceiving(false)
-                    }}
+                    }
+                  />
+                  <Controller
+                    name="model"
+                    control={control}
+                    render={({ field }) => (
+                      <AIAgentBlock title={t("editor.ai-agent.label.model")}>
+                        <div css={labelStyle}>
+                          <span css={labelLogoStyle}>
+                            {getLLM(field.value)?.logo}
+                          </span>
+                          <span css={readOnlyTextStyle}>
+                            {getLLM(field.value)?.name}
+                          </span>
+                        </div>
+                      </AIAgentBlock>
+                    )}
                   />
                 </div>
-              )}
-            />
-          )}
-        />
-      </div>
-      {dialog}
-    </ChatContext.Provider>
+                <form ref={formRef} onSubmit={handleSubmitClick}>
+                  <div css={buttonContainerStyle}>
+                    <Button
+                      size="large"
+                      flex="1"
+                      disabled={!isValid}
+                      loading={isConnecting}
+                      ml="8px"
+                      colorScheme={getColor("grayBlue", "02")}
+                      leftIcon={isRunning ? <ResetIcon /> : <PlayFillIcon />}
+                    >
+                      {!isRunning
+                        ? t("editor.ai-agent.start")
+                        : t("editor.ai-agent.restart")}
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <Controller
+            name="agentType"
+            control={control}
+            shouldUnregister={false}
+            render={({ field }) => (
+              <Controller
+                control={control}
+                name="publishedToMarketplace"
+                render={({ field: contributedField }) => (
+                  <div css={rightPanelContainerStyle}>
+                    <PreviewChat
+                      showShareDialog={showShareAgentModalOnlyForShare(
+                        currentTeamInfo,
+                      )}
+                      showContributeDialog={showShareAgentModal(
+                        currentTeamInfo,
+                        agent.teamID === currentTeamInfo.id
+                          ? currentTeamInfo.myRole
+                          : USER_ROLE.GUEST,
+                        contributedField.value,
+                      )}
+                      showEditPanel={showEditPanel}
+                      setShowEditPanel={setShowEditPanel}
+                      isRunning={isRunning}
+                      isConnecting={isConnecting}
+                      hasCreated={true}
+                      isMobile={false}
+                      editState="RUN"
+                      agentType={field.value}
+                      model={getValues("model")}
+                      chatMessages={chatMessages}
+                      generationMessage={generationMessage}
+                      isReceiving={isReceiving}
+                      blockInput={!isRunning || isDirty}
+                      onSendMessage={(message, agentType: AI_AGENT_TYPE) => {
+                        track(
+                          ILLA_MIXPANEL_EVENT_TYPE.CLICK,
+                          ILLA_MIXPANEL_BUILDER_PAGE_NAME.AI_AGENT_RUN,
+                          {
+                            element: "send",
+                            parameter5: agent.aiAgentID,
+                          },
+                        )
+                        sendMessage(
+                          {
+                            threadID: message.threadID,
+                            prompt: message.message,
+                            variables: [],
+                            modelConfig: getValues("modelConfig"),
+                            model: getValues("model"),
+                            agentType: getValues("agentType"),
+                            actionID: getValues("aiAgentID"),
+                          } as ChatSendRequestPayload,
+                          TextSignal.RUN,
+                          agentType,
+                          "chat",
+                          true,
+                          message,
+                        )
+                      }}
+                      onCancelReceiving={() => {
+                        sendMessage(
+                          {} as ChatSendRequestPayload,
+                          TextSignal.STOP_ALL,
+                          field.value,
+                          "stop_all",
+                          false,
+                        )
+                        setIsReceiving(false)
+                      }}
+                      onClickStartRunning={handleSubmitClick}
+                    />
+                  </div>
+                )}
+              />
+            )}
+          />
+        </div>
+        {dialog}
+        {isFullPageLoading && <FullPageLoading hasMask />}
+      </ChatContext.Provider>
+    </>
   )
 }
 

@@ -64,7 +64,6 @@ export const buttonContainerStyle = css`
 `
 
 export const leftPanelTitleTextStyle = css`
-  padding: 16px 24px 24px;
   cursor: pointer;
   color: ${getColor("grayBlue", "02")};
   font-size: 18px;
@@ -75,8 +74,10 @@ export const leftPanelTitleTextStyle = css`
 
 export const rightPanelContainerStyle = css`
   height: 100%;
+  width: 100%;
   display: flex;
   flex-grow: 1;
+  overflow-x: hidden;
   flex-direction: column;
 `
 
@@ -117,13 +118,13 @@ export const premiumContainerStyle = css`
   box-sizing: border-box;
   border-radius: 4px;
   padding: 1px 7px;
-  color: ${getColor("techPurple", "01")};
+  color: ${getColor("techPurple", "03")};
   font-size: 14px;
   font-style: normal;
   font-weight: 500;
   line-height: 22px;
   text-transform: capitalize;
-  background: ${getColor("techPurple", "07")};
+  background: ${getColor("techPurple", "08")};
 `
 
 export const uploadContainerStyle = css`
@@ -187,4 +188,65 @@ export const temperatureStyle = css`
   font-weight: 400;
   line-height: 22px;
   text-transform: capitalize;
+`
+
+export const docTextContainerStyle = css`
+  text-decoration: none;
+`
+export const docTextStyle = css`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`
+
+export const leftPanelHeaderStyle = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px 16px 24px;
+  text-decoration: none;
+`
+
+export const advancedSettingHeaderStyle = css`
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 8px 24px;
+  color: ${getColor("grayBlue", "04")};
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+`
+
+export const advancedSettingStyle = css`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+`
+
+export const promptContainerStyle = css`
+  width: 100%;
+  height: 100%;
+`
+export const codeEditorErrorStyle = (isError: boolean) => {
+  let style
+  if (isError) {
+    style = css`
+      .cm-editor,
+      .cm-editor:hover,
+      .cm-editor.cm-focused {
+        border-color: ${getColor("red", "03")}!important;
+      }
+    `
+  }
+  return style
+}
+
+export const advancedDivideStyle = css`
+  margin-top: 8px;
+  padding: 0 24px;
 `

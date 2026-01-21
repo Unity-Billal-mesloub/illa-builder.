@@ -1,10 +1,10 @@
-import { get, isNumber } from "lodash"
+import { hasDynamicStringSnippet } from "@illa-public/dynamic-string"
+import { get, isNumber } from "lodash-es"
 import { createMessage } from "@illa-design/react"
 import { getActionItemByDisplayName } from "@/redux/currentApp/action/actionSelector"
 import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
 import store from "@/store"
 import { evaluateDynamicString } from "@/utils/evaluateDynamicString"
-import { hasDynamicStringSnippet } from "@/utils/evaluateDynamicString/utils"
 import { runOriginAction } from "../action/runAction"
 import { wrapperScriptCode } from "../evaluateDynamicString/valueConverter"
 import { clearLocalStorage, setValueLocalStorage } from "./utils/localStorage"
@@ -23,6 +23,7 @@ export enum EVENT_ACTION_TYPE {
   DOWNLOAD_FROM_ILLA_DRIVE = "downloadFromILLADrive",
   SAVE_TO_ILLA_DRIVE = "saveToILLADrive",
 }
+
 const message = createMessage()
 
 export const transformEvents = (
@@ -182,6 +183,13 @@ export const transformEvents = (
           "setEndTime",
           "selectRow",
           "setValueInArray",
+          "setSrc",
+          "setFilterModel",
+          "setColumnVisibilityModel",
+          "setPage",
+          "setPageSize",
+          "setRowSelection",
+          "renderEditor",
         ].includes(widgetMethod)
       ) {
         const { widgetTargetValue } = event
@@ -227,7 +235,8 @@ export const transformEvents = (
         widgetMethod === "slickPrevious" ||
         widgetMethod === "resetValue" ||
         widgetMethod === "resetMarkers" ||
-        widgetMethod === "onFreeTimeDragOrClick"
+        widgetMethod === "onFreeTimeDragOrClick" ||
+        widgetMethod === "openScanner"
       ) {
         return {
           script: `{{${widgetID}.${widgetMethod}()}}`,
@@ -428,7 +437,12 @@ export const runEventHandler = (
   const eventObj = transformEvents(scriptObj, globalData)
   if (!eventObj) return
   const { script, enabled } = eventObj
-  if (enabled || enabled == undefined) {
+
+  if (
+    (typeof enabled === "boolean" && enabled) ||
+    scriptObj.originEnable == undefined ||
+    scriptObj.originEnable === ""
+  ) {
     if (typeof script === "string" && hasDynamicStringSnippet(script)) {
       try {
         evaluateDynamicString("events", script, globalData)

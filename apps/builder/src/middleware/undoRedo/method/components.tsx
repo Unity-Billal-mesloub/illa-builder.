@@ -1,20 +1,26 @@
+import { ComponentTreeNode } from "@illa-public/public-types"
 import { AnyAction } from "@reduxjs/toolkit"
 import { REDUX_ACTION_FROM } from "@/middleware/undoRedo/interface"
-import { UpdateComponentContainerPayload } from "@/redux/currentApp/components/componentsPayload"
+import { UpdateComponentPositionPayload } from "@/redux/currentApp/components/componentsPayload"
 import {
-  getCanvas,
+  getComponentMap,
+  getOriginalGlobalData,
   searchDSLByDisplayName,
+  searchDSLFromTree,
 } from "@/redux/currentApp/components/componentsSelector"
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
+import { getClientWidgetLayoutInfo } from "@/redux/currentApp/layoutInfo/layoutInfoSelector"
 import { RootState } from "@/store"
+import { buildTreeByMapNode } from "@/utils/componentNode/flatTree"
 import IllaUndoRedoManager from "@/utils/undoRedo/undo"
 
 export const componentsSnapShot = (
   reduxAction: string,
   action: AnyAction,
-  _prevRootState: RootState,
-  _nextRootState: RootState,
+  prevRootState: RootState,
+  nextRootState: RootState,
 ) => {
+  const prevComponents = getComponentMap(prevRootState)
+  const nextComponents = getComponentMap(nextRootState)
   switch (reduxAction) {
     // COMPONENT
     case "addComponentReducer": {
@@ -22,7 +28,7 @@ export const componentsSnapShot = (
         type: "components/deleteComponentNodeReducer",
         payload: {
           displayNames: action.payload.map(
-            (item: ComponentNode) => item.displayName,
+            (item: ComponentTreeNode) => item.displayName,
           ),
           source: "undoRedo",
         },
@@ -42,9 +48,9 @@ export const componentsSnapShot = (
     case "deleteComponentNodeReducer": {
       const originActionComponentNode = action.payload.displayNames
         .map((displayName: string) => {
-          return searchDSLByDisplayName(displayName, _prevRootState)
+          return buildTreeByMapNode(displayName, prevComponents)
         })
-        .filter((item: ComponentNode | null) => item != undefined)
+        .filter((item: ComponentTreeNode | null) => item != undefined)
       const newAction = {
         type: "components/addComponentReducer",
         payload: originActionComponentNode,
@@ -84,7 +90,7 @@ export const componentsSnapShot = (
     case "updateComponentLayoutInfoReducer": {
       const originActionComponentNode = searchDSLByDisplayName(
         action.payload.displayName,
-        _prevRootState,
+        prevRootState,
       )
       if (!originActionComponentNode) break
       const newAction = {
@@ -112,25 +118,24 @@ export const componentsSnapShot = (
       }
       break
     }
-    case "updateComponentContainerReducer": {
+    case "updateComponentPositionReducer": {
+      const layoutInfos = getClientWidgetLayoutInfo(prevRootState)
       const originNodeLayoutInfos = (
-        action.payload as UpdateComponentContainerPayload
-      ).updateSlices
-        .map((item) => {
-          return searchDSLByDisplayName(item.displayName, _prevRootState)
-        })
-        .filter((item) => item !== null) as ComponentNode[]
+        action.payload as UpdateComponentPositionPayload
+      ).updateSlices.map((item) => {
+        return layoutInfos[item.displayName]
+      })
       const newUpdateSlices = originNodeLayoutInfos.map((item) => {
         return {
           displayName: item.displayName,
-          x: item.x,
-          y: item.y,
-          w: item.w,
-          h: item.h,
+          x: item.layoutInfo.x,
+          y: item.layoutInfo.y,
+          w: item.layoutInfo.w,
+          h: item.layoutInfo.h,
         }
       })
       const newAction = {
-        type: "components/updateComponentContainerReducer",
+        type: "components/updateComponentPositionReducer",
         payload: {
           oldParentNodeDisplayName: action.payload.newParentNodeDisplayName,
           newParentNodeDisplayName: action.payload.oldParentNodeDisplayName,
@@ -175,7 +180,7 @@ export const componentsSnapShot = (
     case "updateComponentPropsReducer": {
       const { displayName, notUseUndoRedo } = action.payload
       if (notUseUndoRedo) break
-      const originNode = searchDSLByDisplayName(displayName, _prevRootState)
+      const originNode = searchDSLByDisplayName(displayName, prevRootState)
       if (!originNode) break
       const newAction = {
         type: "components/setComponentPropsReducer",
@@ -220,8 +225,9 @@ export const componentsSnapShot = (
     }
     case "deleteTargetPageSectionReducer": {
       const { pageName, deleteSectionName } = action.payload
+      const prevComponentTree = buildTreeByMapNode("root", prevComponents)
 
-      const currentTargeNode = searchDSLByDisplayName(pageName, _prevRootState)
+      const currentTargeNode = searchDSLFromTree(prevComponentTree, pageName)
       if (!currentTargeNode) break
       const originSectionNode = currentTargeNode.childrenNode.find(
         (node) => node.showName === deleteSectionName,
@@ -254,7 +260,7 @@ export const componentsSnapShot = (
 
       const originParentNode = searchDSLByDisplayName(
         parentNodeName,
-        _nextRootState,
+        nextRootState,
       )
       if (!originParentNode) break
       const { props } = originParentNode
@@ -286,9 +292,11 @@ export const componentsSnapShot = (
     }
     case "deleteSectionViewReducer": {
       const { parentNodeName, viewDisplayName } = action.payload
-      const originParentNode = searchDSLByDisplayName(
+      const prevComponentTree = buildTreeByMapNode("root", prevComponents)
+
+      const originParentNode = searchDSLFromTree(
+        prevComponentTree,
         parentNodeName,
-        _prevRootState,
       )
 
       if (!originParentNode) break
@@ -322,7 +330,7 @@ export const componentsSnapShot = (
     case "updateTargetPagePropsReducer": {
       const { pageName, notUseUndoRedo } = action.payload
       if (notUseUndoRedo) break
-      const originPage = searchDSLByDisplayName(pageName, _prevRootState)
+      const originPage = searchDSLByDisplayName(pageName, prevRootState)
       if (!originPage) break
       const newAction = {
         type: "components/updateTargetPagePropsReducer",
@@ -345,7 +353,8 @@ export const componentsSnapShot = (
     }
     case "addPageNodeWithSortOrderReducer": {
       const { displayName } = action.payload
-      const rootNode = getCanvas(_nextRootState)
+      const rootNode = buildTreeByMapNode("root", nextComponents)
+
       if (!rootNode || !rootNode.props) break
 
       const newAction = {
@@ -370,7 +379,7 @@ export const componentsSnapShot = (
     case "deletePageNodeReducer": {
       const originPageNode = searchDSLByDisplayName(
         action.payload.displayName,
-        _prevRootState,
+        prevRootState,
       )
       if (!originPageNode) break
       const newAction = {
@@ -391,7 +400,8 @@ export const componentsSnapShot = (
     }
     case "updateTargetPageLayoutReducer": {
       const { pageName } = action.payload
-      const originPageNode = searchDSLByDisplayName(pageName, _prevRootState)
+      const prevComponentTree = buildTreeByMapNode("root", prevComponents)
+      const originPageNode = searchDSLFromTree(prevComponentTree, pageName)
       if (!originPageNode || !originPageNode.props) break
       const newAction = {
         type: "components/updateTargetPageLayoutReducer",
@@ -433,7 +443,10 @@ export const componentsSnapShot = (
     }
     case "addSubPageReducer": {
       const { pageName } = action.payload
-      const pageNode = searchDSLByDisplayName(pageName, _nextRootState)
+      const pageNode = searchDSLFromTree(
+        buildTreeByMapNode("root", nextComponents),
+        pageName,
+      )
       const bodySectionNode = pageNode?.childrenNode.find(
         (node) => node.showName === "bodySection",
       )
@@ -484,7 +497,8 @@ export const componentsSnapShot = (
     }
     case "updateDefaultSubPagePathReducer": {
       const { pageName } = action.payload
-      const pageNode = searchDSLByDisplayName(pageName, _prevRootState)
+      const prevComponentTree = buildTreeByMapNode("root", prevComponents)
+      const pageNode = searchDSLFromTree(prevComponentTree, pageName)
       const oldBodySectionNode = pageNode?.childrenNode.find(
         (node) => node.showName === "bodySection",
       )
@@ -511,7 +525,9 @@ export const componentsSnapShot = (
     }
     case "updateCurrentPageStyleReducer": {
       const { pageName, style, sectionName } = action.payload
-      const pageNode = searchDSLByDisplayName(pageName, _prevRootState)
+      const prevComponentTree = buildTreeByMapNode("root", prevComponents)
+
+      const pageNode = searchDSLFromTree(prevComponentTree, pageName)
       const updateKeys = Object.keys(style)
       if (!pageNode) break
       const sectionNode = pageNode.childrenNode?.find(
@@ -541,7 +557,8 @@ export const componentsSnapShot = (
     }
     case "deleteCurrentPageStyleReducer": {
       const { pageName, sectionName } = action.payload
-      const pageNode = searchDSLByDisplayName(pageName, _prevRootState)
+      const prevComponentTree = buildTreeByMapNode("root", prevComponents)
+      const pageNode = searchDSLFromTree(prevComponentTree, pageName)
       if (!pageNode) break
       const sectionNode = pageNode.childrenNode?.find(
         (node) => node.showName === sectionName,
@@ -555,6 +572,58 @@ export const componentsSnapShot = (
           pageName: pageName,
           style: sectionNodeStyle,
           sectionName: sectionName,
+        },
+        from: action.from,
+      }
+      if (action.from === REDUX_ACTION_FROM.UNDO) {
+        IllaUndoRedoManager.pushToRedoStack([
+          JSON.parse(JSON.stringify(newAction)),
+        ])
+      } else {
+        IllaUndoRedoManager.pushToUndoStack([
+          JSON.parse(JSON.stringify(newAction)),
+        ])
+      }
+      break
+    }
+    case "setGlobalStateReducer": {
+      const { key, oldKey, value } = action.payload
+      let newAction
+      if (!oldKey) {
+        newAction = {
+          type: "components/deleteGlobalStateByKeyReducer",
+          payload: { key },
+          from: action.from,
+        }
+      } else {
+        newAction = {
+          type: "components/setGlobalStateReducer",
+          payload: { key: oldKey, oldKey: key, value },
+          from: action.from,
+        }
+      }
+
+      if (action.from === REDUX_ACTION_FROM.UNDO) {
+        IllaUndoRedoManager.pushToRedoStack([
+          JSON.parse(JSON.stringify(newAction)),
+        ])
+      } else {
+        IllaUndoRedoManager.pushToUndoStack([
+          JSON.parse(JSON.stringify(newAction)),
+        ])
+      }
+      break
+    }
+    case "deleteGlobalStateByKeyReducer": {
+      const prevGlobalState = getOriginalGlobalData(prevRootState)
+      const { key } = action.payload
+      const targetGlobalState = prevGlobalState[key]
+      const newAction = {
+        type: "components/setGlobalStateReducer",
+        payload: {
+          key,
+          value: targetGlobalState,
+          oldKey: "",
         },
         from: action.from,
       }

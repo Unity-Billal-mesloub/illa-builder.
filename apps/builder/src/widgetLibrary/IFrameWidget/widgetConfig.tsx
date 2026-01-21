@@ -1,4 +1,4 @@
-import { ReactComponent as IFrameWidgetIcon } from "@/assets/widgetCover/iframe.svg"
+import IFrameWidgetIcon from "@/assets/widgetCover/iframe.svg?react"
 import i18n from "@/i18n/config"
 import { RESIZE_DIRECTION, WidgetConfig } from "@/widgetLibrary/interface"
 
@@ -14,6 +14,6 @@ export const IFRAME_WIDGET_CONFIG: WidgetConfig = {
   resizeDirection: RESIZE_DIRECTION.ALL,
   version: 0,
   defaults: {
-    src: "https://illacloud.com",
+    src: "https://www.nasa.gov/",
   },
 }

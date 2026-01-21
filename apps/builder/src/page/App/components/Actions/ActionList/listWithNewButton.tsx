@@ -1,5 +1,33 @@
-import { isEqual } from "lodash"
-import { FC, useContext, useState } from "react"
+import { UpgradeIcon, getIconFromResourceType } from "@illa-public/icon"
+import {
+  ILLA_MIXPANEL_BUILDER_PAGE_NAME,
+  ILLA_MIXPANEL_EVENT_TYPE,
+  MixpanelTrackProvider,
+} from "@illa-public/mixpanel-utils"
+import {
+  INIT_ACTION_ADVANCED_CONFIG,
+  INIT_ACTION_MOCK_CONFIG,
+  actionItemInitial,
+  generateBaseActionItem,
+  getInitialContent,
+} from "@illa-public/public-configs"
+import {
+  ActionContent,
+  ActionItem,
+  ActionType,
+  GlobalDataActionContent,
+  Resource,
+} from "@illa-public/public-types"
+import {
+  ActionGenerator,
+  ResourceGeneratorProvider,
+} from "@illa-public/resource-generator"
+import { useUpgradeModal } from "@illa-public/upgrade-modal"
+import { isSubscribeForUseDrive } from "@illa-public/upgrade-modal/utils"
+import { getCurrentTeamInfo } from "@illa-public/user-data"
+import { isCloudVersion } from "@illa-public/utils"
+import { isEqual } from "lodash-es"
+import { FC, useCallback, useContext, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
 import { v4 } from "uuid"
@@ -15,7 +43,7 @@ import {
   useMessage,
   useModal,
 } from "@illa-design/react"
-import { ReactComponent as ActionListEmptyState } from "@/assets/action-list-empty-state.svg"
+import ActionListEmptyState from "@/assets/action-list-empty-state.svg?react"
 import {
   getCachedAction,
   getIsILLAGuideMode,
@@ -24,33 +52,27 @@ import {
 import { configActions } from "@/redux/config/configSlice"
 import { getActionMixedList } from "@/redux/currentApp/action/actionSelector"
 import { actionActions } from "@/redux/currentApp/action/actionSlice"
-import {
-  ActionContent,
-  ActionItem,
-  ActionType,
-  GlobalDataActionContent,
-  actionItemInitial,
-} from "@/redux/currentApp/action/actionState"
-import { getInitialContent } from "@/redux/currentApp/action/getInitialContent"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
+import { getAllResources } from "@/redux/resource/resourceSelector"
+import { resourceActions } from "@/redux/resource/resourceSlice"
 import { fetchCreateAction } from "@/services/action"
 import { DisplayNameGenerator } from "@/utils/generators/generateDisplayName"
+import { track } from "@/utils/mixpanelHelper"
 import { ShortCutContext } from "@/utils/shortcut/shortcutProvider"
-import AIAgentIcon from "../../Icons/aiAgent"
 import DatabaseIcon from "../../Icons/database"
-import GlobalDataIcon from "../../Icons/globalData"
-import TransformerIcon from "../../Icons/transformer"
-import { ActionGenerator } from "../ActionGenerator"
 import { ActionListItem } from "../ActionListItem"
 import { onCopyActionItem } from "../api"
+import { useCreateAction } from "../hook"
 import { ListWithNewButtonProps } from "./interface"
 import {
   actionListEmptyStyle,
   addNewActionButtonStyle,
   createDropListItemContainerStyle,
+  dropListWithUpgradeIconStyle,
   listContainerStyle,
   listStyle,
   prefixIconContainerStyle,
+  upgradeContainerStyle,
 } from "./style"
 
 export const ActionListWithNewButton: FC<ListWithNewButtonProps> = (props) => {
@@ -58,11 +80,14 @@ export const ActionListWithNewButton: FC<ListWithNewButtonProps> = (props) => {
   const selectedAction = useSelector(getSelectedAction)
   const cachedAction = useSelector(getCachedAction)
   const isGuideMode = useSelector(getIsILLAGuideMode)
+  const resourceList = useSelector(getAllResources)
   const shortcut = useContext(ShortCutContext)
   const [generatorVisible, setGeneratorVisible] = useState<boolean>()
   const [currentActionType, setCurrentActionType] =
     useState<ActionType | null>()
   const actionList = useSelector(getActionMixedList)
+  const teamInfo = useSelector(getCurrentTeamInfo)!
+  const upgradeModal = useUpgradeModal()
 
   const searchList = actionList.filter((value) => {
     return value.displayName
@@ -86,6 +111,11 @@ export const ActionListWithNewButton: FC<ListWithNewButtonProps> = (props) => {
             displayName,
             content: initialContent,
             isVirtualResource: false,
+            config: {
+              public: false,
+              advancedConfig: INIT_ACTION_ADVANCED_CONFIG,
+              mockConfig: INIT_ACTION_MOCK_CONFIG,
+            },
             ...actionItemInitial,
           }
           if (isGuideMode) {
@@ -134,8 +164,55 @@ export const ActionListWithNewButton: FC<ListWithNewButtonProps> = (props) => {
               enable: false,
               rawData: "",
             },
+            config: {
+              public: false,
+              advancedConfig: INIT_ACTION_ADVANCED_CONFIG,
+              mockConfig: INIT_ACTION_MOCK_CONFIG,
+            },
           }
           dispatch(configActions.changeSelectedAction(createActionData))
+          break
+        }
+        case "illadrive": {
+          if (!isSubscribeForUseDrive(teamInfo)) {
+            upgradeModal({
+              modalType: "upgrade",
+              from: "drive_action",
+            })
+            return
+          }
+          const displayName = DisplayNameGenerator.generateDisplayName(type)
+          const initialContent = getInitialContent(type)
+          const baseData = generateBaseActionItem(displayName, "")
+          const data = {
+            ...baseData,
+            actionType: type,
+            content: initialContent,
+            isVirtualResource: true,
+          }
+
+          if (isGuideMode) {
+            const createActionData: ActionItem<ActionContent> = {
+              ...data,
+              actionID: v4(),
+            }
+            dispatch(actionActions.addActionItemReducer(createActionData))
+            dispatch(configActions.changeSelectedAction(createActionData))
+            return
+          }
+          try {
+            const { data: responseData } = await fetchCreateAction(data)
+            message.success({
+              content: t("editor.action.action_list.message.success_created"),
+            })
+            dispatch(actionActions.addActionItemReducer(responseData))
+            dispatch(configActions.changeSelectedAction(responseData))
+          } catch (_e) {
+            message.error({
+              content: t("editor.action.action_list.message.failed"),
+            })
+            DisplayNameGenerator.removeDisplayName(displayName)
+          }
           break
         }
         default: {
@@ -145,6 +222,34 @@ export const ActionListWithNewButton: FC<ListWithNewButtonProps> = (props) => {
       }
     }
   }
+
+  const [handleDirectCreateAction, handleCreateAgentAction] = useCreateAction()
+
+  const handleFinishCreateNewResource = useCallback(
+    (resource: Resource, isUpdate: boolean) => {
+      track(
+        ILLA_MIXPANEL_EVENT_TYPE.CLICK,
+        ILLA_MIXPANEL_BUILDER_PAGE_NAME.EDITOR,
+        {
+          element: "resource_configure_save",
+          parameter5: resource.resourceType,
+        },
+      )
+      if (isUpdate) {
+        dispatch(resourceActions.updateResourceItemReducer(resource))
+      } else {
+        dispatch(resourceActions.addResourceItemReducer(resource))
+      }
+      handleDirectCreateAction(
+        resource.resourceType,
+        resource.resourceID,
+        () => {
+          setGeneratorVisible(false)
+        },
+      )
+    },
+    [dispatch, handleDirectCreateAction],
+  )
 
   return (
     <>
@@ -172,7 +277,7 @@ export const ActionListWithNewButton: FC<ListWithNewButtonProps> = (props) => {
               title={
                 <div css={createDropListItemContainerStyle}>
                   <span css={prefixIconContainerStyle}>
-                    <TransformerIcon />
+                    {getIconFromResourceType("transformer", "16px")}
                   </span>
                   {t("editor.action.panel.label.option.general.js")}
                 </div>
@@ -185,26 +290,51 @@ export const ActionListWithNewButton: FC<ListWithNewButtonProps> = (props) => {
               title={
                 <div css={createDropListItemContainerStyle}>
                   <span css={prefixIconContainerStyle}>
-                    <GlobalDataIcon />
+                    {getIconFromResourceType("globalData", "16px")}
                   </span>
                   {t("editor.action.panel.label.option.general.global-data")}
                 </div>
               }
               onClick={handleClickActionType("globalData")}
             />
-            <DropListItem
-              key="aiagent"
-              value="aiagent"
-              title={
-                <div css={createDropListItemContainerStyle}>
-                  <span css={prefixIconContainerStyle}>
-                    <AIAgentIcon />
-                  </span>
-                  {t("editor.action.panel.label.option.general.ai-agent")}
-                </div>
-              }
-              onClick={handleClickActionType("aiagent")}
-            />
+            {isCloudVersion && (
+              <>
+                <DropListItem
+                  key="aiagent"
+                  value="aiagent"
+                  title={
+                    <div css={createDropListItemContainerStyle}>
+                      <span css={prefixIconContainerStyle}>
+                        {getIconFromResourceType("aiagent", "16px")}
+                      </span>
+                      {t("editor.action.panel.label.option.general.ai-agent")}
+                    </div>
+                  }
+                  onClick={handleClickActionType("aiagent")}
+                />
+                <DropListItem
+                  key="illaDrive"
+                  value="illaDrive"
+                  title={
+                    <div css={dropListWithUpgradeIconStyle}>
+                      <div css={createDropListItemContainerStyle}>
+                        <span css={prefixIconContainerStyle}>
+                          {getIconFromResourceType("illadrive", "16px")}
+                        </span>
+                        ILLA Drive
+                      </div>
+                      {!isSubscribeForUseDrive(teamInfo) && (
+                        <div css={upgradeContainerStyle}>
+                          <UpgradeIcon />
+                          <span>{t("Upgrade")}</span>
+                        </div>
+                      )}
+                    </div>
+                  }
+                  onClick={handleClickActionType("illadrive")}
+                />
+              </>
+            )}
           </DropList>
         }
       >
@@ -292,13 +422,25 @@ export const ActionListWithNewButton: FC<ListWithNewButtonProps> = (props) => {
           </div>
         )}
         {generatorVisible && (
-          <ActionGenerator
-            visible={generatorVisible}
-            onClose={() => setGeneratorVisible(false)}
-            defaultStep={currentActionType ? "createAction" : "select"}
-            defaultActionType={currentActionType}
-            canBackToSelect={!currentActionType}
-          />
+          <MixpanelTrackProvider
+            basicTrack={track}
+            pageName={ILLA_MIXPANEL_BUILDER_PAGE_NAME.EDITOR}
+          >
+            <ResourceGeneratorProvider
+              allResource={resourceList}
+              createOrUpdateResourceCallback={handleFinishCreateNewResource}
+            >
+              <ActionGenerator
+                visible={generatorVisible}
+                onClose={() => setGeneratorVisible(false)}
+                defaultStep={currentActionType ? "createAction" : "select"}
+                defaultActionType={currentActionType}
+                canBackToSelect={!currentActionType}
+                handleDirectCreateAction={handleDirectCreateAction}
+                handleCreateAgentAction={handleCreateAgentAction}
+              />
+            </ResourceGeneratorProvider>
+          </MixpanelTrackProvider>
         )}
       </div>
     </>

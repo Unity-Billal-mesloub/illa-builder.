@@ -1,4 +1,4 @@
-import { ReactComponent as TextWidgetIcon } from "@/assets/widgetCover/text.svg"
+import TextWidgetIcon from "@/assets/widgetCover/text.svg?react"
 import i18n from "@/i18n/config"
 import { RESIZE_DIRECTION, WidgetConfig } from "@/widgetLibrary/interface"
 
@@ -21,6 +21,7 @@ export const TEXT_WIDGET_CONFIG: WidgetConfig = {
     disableMarkdown: false,
     hidden: false,
     fs: "14px",
+    weight: 400,
     dynamicHeight: "fixed",
     resizeDirection: RESIZE_DIRECTION.ALL,
   },

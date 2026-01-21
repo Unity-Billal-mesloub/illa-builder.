@@ -1,39 +1,5 @@
 import { Types, getType, isObject } from "@/utils/typeHelper"
-import { EVALUATION_TYPE } from "./interface"
 import { filterBindingSegmentsAndRemoveQuotes } from "./utils"
-
-export const smartSubstituteDynamicValues = (
-  originDynamicString: string,
-  originStringSnippets: string[],
-  originValues: unknown[],
-): string => {
-  const { dynamicString, stringSnippets, values } =
-    filterBindingSegmentsAndRemoveQuotes(
-      originDynamicString,
-      originStringSnippets,
-      originValues,
-    )
-  let finalBinding = dynamicString
-  stringSnippets.forEach((b, i) => {
-    const value = values[i]
-    switch (getType(value)) {
-      case Types.NUMBER:
-      case Types.BOOLEAN:
-      case Types.NULL:
-      case Types.UNDEFINED:
-        finalBinding = finalBinding.replace(b, `${value}`)
-        break
-      case Types.STRING:
-        finalBinding = finalBinding.replace(b, `${JSON.stringify(value)}`)
-        break
-      case Types.ARRAY:
-      case Types.OBJECT:
-        finalBinding = finalBinding.replace(b, JSON.stringify(value, null, 2))
-        break
-    }
-  })
-  return finalBinding
-}
 
 export const templateSubstituteDynamicValues = (
   dynamicString: string,
@@ -58,22 +24,45 @@ export const templateSubstituteDynamicValues = (
   return finalValue
 }
 
+export const smartSubstituteDynamicValues = (
+  originDynamicString: string,
+  originStringSnippets: string[],
+  originValues: unknown[],
+): string => {
+  const { dynamicString, stringSnippets, values } =
+    filterBindingSegmentsAndRemoveQuotes(
+      originDynamicString,
+      originStringSnippets,
+      originValues,
+    )
+  let finalBinding = dynamicString
+  stringSnippets.forEach((b, i) => {
+    const value = values[i]
+    switch (getType(value)) {
+      case Types.NUMBER:
+      case Types.BOOLEAN:
+      case Types.NULL:
+      case Types.UNDEFINED:
+        finalBinding = finalBinding.replace(b, `${value}`)
+        break
+      case Types.STRING:
+        finalBinding = finalBinding.replace(b, value as string)
+        break
+      case Types.ARRAY:
+      case Types.OBJECT:
+        finalBinding = finalBinding.replace(b, JSON.stringify(value, null, 2))
+        break
+    }
+  })
+  return finalBinding
+}
+
 export const substituteDynamicBindingWithValues = (
   dynamicString: string,
   stringSnippets: string[],
   values: unknown[],
-  evaluationType: EVALUATION_TYPE,
 ): string => {
-  switch (evaluationType) {
-    case EVALUATION_TYPE.TEMPLATE:
-      return templateSubstituteDynamicValues(
-        dynamicString,
-        stringSnippets,
-        values,
-      )
-    case EVALUATION_TYPE.SMART_SUBSTITUTE:
-      return smartSubstituteDynamicValues(dynamicString, stringSnippets, values)
-  }
+  return templateSubstituteDynamicValues(dynamicString, stringSnippets, values)
 }
 
 const ASYNC_SCRIPT_CODE_INPUT_START_MARKS = "{{(async function (){"

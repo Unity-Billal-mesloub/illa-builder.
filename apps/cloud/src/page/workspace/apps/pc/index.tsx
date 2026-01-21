@@ -1,17 +1,18 @@
 import { PCAppCard, TeamContentEmpty } from "@illa-public/dashboard"
 import { AppListContextProvider } from "@illa-public/dashboard"
 import { BASIC_APP_CONFIG } from "@illa-public/public-configs"
-import { AppInfoShape } from "@illa-public/public-types"
+import { AppInfoShape, USER_ROLE } from "@illa-public/public-types"
 import {
-  USER_ROLE,
   getCurrentId,
   getCurrentTeamInfo,
   getCurrentUser,
   getPlanUtils,
 } from "@illa-public/user-data"
 import {
+  ACTION_ACCESS,
   ACTION_MANAGE,
   ATTRIBUTE_GROUP,
+  canAccess,
   canManage,
 } from "@illa-public/user-role-utils"
 import {
@@ -49,7 +50,14 @@ export const PCAppWorkspace = () => {
   const currentTeamID = useSelector(getCurrentId)!
   const currentTeamInfo = useSelector(getCurrentTeamInfo)
   const userInfo = useSelector(getCurrentUser)
-  const { data: appList, isLoading } = useAppList()
+
+  const canAccessApps = canAccess(
+    currentTeamInfo?.myRole ?? USER_ROLE.VIEWER,
+    ATTRIBUTE_GROUP.APP,
+    getPlanUtils(currentTeamInfo),
+    ACTION_ACCESS.VIEW,
+  )
+  const { data: appList, isLoading } = useAppList(canAccessApps)
   const { t } = useTranslation()
   const [createLoading, setCreateLoading] = useState(false)
   const { teamIdentifier } = useParams()
@@ -78,7 +86,7 @@ export const PCAppWorkspace = () => {
       },
     }
     return mutate(
-      ["/apps", currentTeamID],
+      ["/apps", currentTeamID, canAccessApps],
       async (appList) => {
         const response = await fetchDeleteApp(appID, currentTeamID)
         if (Array.isArray(appList))
@@ -90,7 +98,7 @@ export const PCAppWorkspace = () => {
   }
 
   const copyApp = (appID: string) => {
-    return mutate(["/apps", currentTeamID], async () => {
+    return mutate(["/apps", currentTeamID, canAccessApps], async () => {
       if (Array.isArray(appListResult)) {
         const targetAppInfo = appListResult?.find(
           (item) => item.appId === appID,
@@ -153,7 +161,7 @@ export const PCAppWorkspace = () => {
       revalidate: false,
     }
     return mutate(
-      ["/apps", currentTeamID],
+      ["/apps", currentTeamID, canAccessApps],
       fetchUpdateAppConfig(appID, currentTeamID, config),
       options,
     )

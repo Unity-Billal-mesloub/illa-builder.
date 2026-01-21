@@ -1,8 +1,5 @@
-import {
-  ActionContent,
-  ActionItem,
-} from "@/redux/currentApp/action/actionState"
-import { TransformerAction } from "@/redux/currentApp/action/transformerAction"
+import { ActionContent, TransformerAction } from "@illa-public/public-types"
+import { ActionItem } from "@illa-public/public-types"
 import { getNewWidgetPropsByUpdateSlice } from "../componentNode"
 import { VALIDATION_TYPES } from "../validationFactory"
 
@@ -56,6 +53,9 @@ export const generateRawAction = (
   modifiedAction.$dynamicAttrPaths = [
     ...((newProps?.$dynamicAttrPaths ?? []) as string[]),
   ]
+  let context: Record<string, unknown> = {}
+
+  modifiedAction.$context = context
 
   return modifiedAction
 }

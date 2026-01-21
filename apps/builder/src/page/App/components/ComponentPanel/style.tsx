@@ -1,9 +1,14 @@
 import { css } from "@emotion/react"
-import { globalColor, illaPrefix } from "@illa-design/react"
+import { getColor, globalColor, illaPrefix } from "@illa-design/react"
 
 export const componentContainerStyle = css`
   border-top: 1px solid ${globalColor(`--${illaPrefix}-grayBlue-08`)};
   width: 100%;
+  height: 100%;
+  padding-bottom: 40px;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
 `
 export const searchWrapperStyle = css`
   padding: 16px 16px 8px 16px;
@@ -13,7 +18,7 @@ export const sessionListContainerStyle = css`
   ${searchWrapperStyle};
   padding-top: 0;
   padding-bottom: 0;
-  max-height: calc(100vh - 158px);
+  height: 100%;
   overflow-y: auto;
   width: 100%;
   display: flex;
@@ -21,7 +26,6 @@ export const sessionListContainerStyle = css`
 `
 
 export const sessionContainerStyle = css`
-  height: 100%;
   width: 100%;
   display: inline-flex;
   flex-direction: column;
@@ -66,7 +70,8 @@ export const iconStyle = css`
   color: ${globalColor(`--${illaPrefix}-grayBlue-04`)};
   transition: background-color 200ms ease-in-out;
   padding: 8px;
-
+  position: relative;
+  overflow: hidden;
   &:hover {
     background-color: ${globalColor(`--${illaPrefix}-grayBlue-08`)};
   }
@@ -84,12 +89,22 @@ export const nameStyle = css`
   line-height: 14px;
 `
 
-export const emptyStyle = css`
+export const emptyContainerStyle = css`
   width: 100%;
-  height: 100%;
+  height: 319px;
   display: flex;
-  padding-top: 122.5px;
-  flex-direction: column;
   align-items: center;
-  color: ${globalColor(`--${illaPrefix}-grayBlue-04`)};
+  justify-content: center;
+`
+
+export const upgradeIconStyle = css`
+  position: absolute;
+  padding: 2px 8px;
+  top: 0;
+  left: 0;
+  color: ${getColor("techPurple", "03")};
+  background-color: ${getColor("techPurple", "08")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `

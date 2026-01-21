@@ -1,12 +1,12 @@
+import { fetchBatchCreateAction } from "@illa-public/create-app"
 import { builderRequest } from "@illa-public/illa-net"
-import { createAction } from "@/api/actions"
-import { DeployResp } from "@/page/App/components/PageNavBar/resp"
+import { AppInfoShape, ComponentTreeNode } from "@illa-public/public-types"
+import { DeployResp } from "@/page/App/Module/PageNavBar/resp"
 import { CurrentAppResp } from "@/page/App/resp/currentAppResp"
 import { getActionList } from "@/redux/currentApp/action/actionSelector"
-import { DashboardApp } from "@/redux/currentApp/appInfo/appInfoState"
-import { getCanvas } from "@/redux/currentApp/components/componentsSelector"
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
+import { getComponentMap } from "@/redux/currentApp/components/componentsSelector"
 import store from "@/store"
+import { buildTreeByMapNode } from "../utils/componentNode/flatTree"
 import { getCurrentTeamID } from "../utils/team"
 
 interface IAPPPublicStatus {
@@ -104,11 +104,11 @@ export const fetchChangeAppSetting = (
 
 interface IAppCreateRequestData {
   appName: string
-  initScheme: ComponentNode
+  initScheme: ComponentTreeNode
 }
 
 export const fetchCreateApp = (data: IAppCreateRequestData) => {
-  return builderRequest<DashboardApp>(
+  return builderRequest<AppInfoShape>(
     {
       url: "/apps",
       method: "POST",
@@ -151,7 +151,7 @@ export const updateWaterMarkConfig = async (
   waterMark: boolean,
   appID: string,
 ) => {
-  return builderRequest<DashboardApp>(
+  return builderRequest<AppInfoShape>(
     {
       method: "PATCH",
       url: `/apps/${appID}/config`,
@@ -174,7 +174,7 @@ export const updateAppConfig = async (
     appName?: string
   },
 ) => {
-  return builderRequest<DashboardApp>(
+  return builderRequest<AppInfoShape>(
     {
       method: "PATCH",
       url: `/apps/${appID}/config`,
@@ -186,7 +186,10 @@ export const updateAppConfig = async (
   )
 }
 
-export const createApp = async (appName: string, initScheme: ComponentNode) => {
+export const createApp = async (
+  appName: string,
+  initScheme: ComponentTreeNode,
+) => {
   const requestData = { appName, initScheme }
   const response = await fetchCreateApp(requestData)
   return response.data.appId
@@ -194,20 +197,20 @@ export const createApp = async (appName: string, initScheme: ComponentNode) => {
 
 export const forkCurrentApp = async (appName: string) => {
   const actions = getActionList(store.getState())
-  const rootComponentNode = getCanvas(store.getState()) as ComponentNode
+  const componentsMap = getComponentMap(store.getState())
   // fork app
-  const appId = await createApp(appName, rootComponentNode)
-  // fork actions
-  await Promise.all(
-    actions.map((data) => {
-      return createAction(appId, data)
-    }),
+  // TODO: need check
+  const appId = await createApp(
+    appName,
+    buildTreeByMapNode("root", componentsMap),
   )
+  // fork actions
+  await fetchBatchCreateAction(getCurrentTeamID()!, appId, actions)
   return appId
 }
 
 export const fetchCopyApp = (appID: string, name: string) => {
-  return builderRequest<DashboardApp>(
+  return builderRequest<AppInfoShape>(
     {
       url: `/apps/${appID}/duplication`,
       method: "POST",
@@ -219,4 +222,12 @@ export const fetchCopyApp = (appID: string, name: string) => {
       teamID: getCurrentTeamID(),
     },
   )
+}
+
+export const fetchForkApp = (appID: string) => {
+  const teamID = getCurrentTeamID()
+  return builderRequest<{ appId: string }>({
+    url: `/apps/${appID}/forkTo/teams/${teamID}`,
+    method: "POST",
+  })
 }

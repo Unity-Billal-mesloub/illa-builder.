@@ -1,5 +1,6 @@
 import { isCloudVersion } from "@illa-public/utils"
 import { FC, LazyExoticComponent, lazy } from "react"
+import { PanelConfig } from "@/page/App/components/InspectPanel/interface"
 import {
   AUDIO_EVENT_HANDLER_CONFIG,
   AUDIO_PANEL_CONFIG,
@@ -50,6 +51,11 @@ import {
   CONTAINER_PANEL_CONFIG,
   CONTAINER_WIDGET_CONFIG,
 } from "@/widgetLibrary/ContainerWidget"
+import {
+  DATA_GRID_EVENT_HANDLER_CONFIG,
+  DATA_GRID_PANEL_CONFIG,
+  DATA_GRID_WIDGET_CONFIG,
+} from "@/widgetLibrary/DataGridWidget"
 import {
   DATE_RANGE_EVENT_HANDLER_CONFIG,
   DATE_RANGE_PANEL_CONFIG,
@@ -225,6 +231,11 @@ import {
   TABS_WIDGET_CONFIG,
 } from "@/widgetLibrary/TabsWidget"
 import {
+  TAGS_EVENT_HANDLER_CONFIG,
+  TAGS_PANEL_CONFIG,
+  TAGS_WIDGET_CONFIG,
+} from "@/widgetLibrary/TagsWidget"
+import {
   TEXTAREA_EVENT_HANDLER_CONFIG,
   TEXTAREA_PANEL_CONFIG,
   TEXTAREA_WIDGET_CONFIG,
@@ -259,7 +270,32 @@ import {
   VIDEO_PANEL_CONFIG,
   VIDEO_WIDGET_CONFIG,
 } from "@/widgetLibrary/VideoWidget"
-import { PanelConfig } from "../page/App/components/InspectPanel/interface"
+import {
+  AVATAR_EVENT_HANDLER_CONFIG,
+  AVATAR_PANEL_CONFIG,
+  AVATAR_WIDGET_CONFIG,
+} from "./AvatarWidget"
+import {
+  CODE_SCANNER_EVENT_HANDLER_CONFIG,
+  CODE_SCANNER_PANEL_CONFIG,
+  CODE_SCANNER_WIDGET_CONFIG,
+} from "./CodeScannerWidget"
+import {
+  GRID_LIST_EVENT_HANDLER_CONFIG,
+  GRID_LIST_PANEL_CONFIG,
+  GRID_LIST_WIDGET_CONFIG,
+} from "./GridListWidget"
+import { IFRAME_EVENT_HANDLER_CONFIG } from "./IFrameWidget/eventHandlerConfig"
+import {
+  QR_CODE_EVENT_HANDLER_CONFIG,
+  QR_CODE_PANEL_CONFIG,
+  QR_CODE_WIDGET_CONFIG,
+} from "./QRCodeWidget"
+import {
+  SIGNATURE_EVENT_HANDLER_CONFIG,
+  SIGNATURE_PANEL_CONFIG,
+  SIGNATURE_WIDGET_CONFIG,
+} from "./SignatureWidget"
 import { EventHandlerConfig, WidgetConfig } from "./interface"
 
 export const WidgetConfigMap: Record<
@@ -340,6 +376,12 @@ export const WidgetConfigMap: Record<
     panelConfig: JSON_SCHEMA_FORM_PANEL_CONFIG,
     eventHandlerConfig: JSON_SCHEMA_FORM_EVENT_HANDLER_CONFIG,
   },
+  SIGNATURE_WIDGET: {
+    widget: lazy(() => import("@/widgetLibrary/SignatureWidget/signature")),
+    config: SIGNATURE_WIDGET_CONFIG,
+    panelConfig: SIGNATURE_PANEL_CONFIG,
+    eventHandlerConfig: SIGNATURE_EVENT_HANDLER_CONFIG,
+  },
   // select inputs
   SWITCH_WIDGET: {
     config: SWITCH_WIDGET_CONFIG,
@@ -419,6 +461,12 @@ export const WidgetConfigMap: Record<
     widget: lazy(() => import("@/widgetLibrary/DateTimeWidget/dateTime")),
   },
   // data
+  DATA_GRID_WIDGET: {
+    config: DATA_GRID_WIDGET_CONFIG,
+    panelConfig: DATA_GRID_PANEL_CONFIG,
+    eventHandlerConfig: DATA_GRID_EVENT_HANDLER_CONFIG,
+    widget: lazy(() => import("@/widgetLibrary/DataGridWidget/dataGrid")),
+  },
   CHART_WIDGET: {
     config: CHART_WIDGET_V2_CONFIG,
     panelConfig: CHART_PANEL_CONFIG,
@@ -460,6 +508,12 @@ export const WidgetConfigMap: Record<
     eventHandlerConfig: LIST_EVENT_HANDLER_CONFIG,
     widget: lazy(() => import("@/widgetLibrary/ListWidget/list")),
   },
+  GRID_LIST_WIDGET: {
+    config: GRID_LIST_WIDGET_CONFIG,
+    panelConfig: GRID_LIST_PANEL_CONFIG,
+    eventHandlerConfig: GRID_LIST_EVENT_HANDLER_CONFIG,
+    widget: lazy(() => import("@/widgetLibrary/GridListWidget/gridList")),
+  },
   // navigation
   MENU_WIDGET: {
     config: MENU_WIDGET_CONFIG,
@@ -498,6 +552,24 @@ export const WidgetConfigMap: Record<
     eventHandlerConfig: BUTTON_EVENT_HANDLER_CONFIG,
     widget: lazy(() => import("@/widgetLibrary/ButtonWidget/button")),
   },
+  QR_CODE_WIDGET: {
+    config: QR_CODE_WIDGET_CONFIG,
+    panelConfig: QR_CODE_PANEL_CONFIG,
+    eventHandlerConfig: QR_CODE_EVENT_HANDLER_CONFIG,
+    widget: lazy(() => import("@/widgetLibrary/QRCodeWidget/qrCode")),
+  },
+  CODE_SCANNER_WIDGET: {
+    config: CODE_SCANNER_WIDGET_CONFIG,
+    panelConfig: CODE_SCANNER_PANEL_CONFIG,
+    eventHandlerConfig: CODE_SCANNER_EVENT_HANDLER_CONFIG,
+    widget: lazy(() => import("@/widgetLibrary/CodeScannerWidget/codeScanner")),
+  },
+  TAGS_WIDGET: {
+    config: TAGS_WIDGET_CONFIG,
+    panelConfig: TAGS_PANEL_CONFIG,
+    eventHandlerConfig: TAGS_EVENT_HANDLER_CONFIG,
+    widget: lazy(() => import("@/widgetLibrary/TagsWidget/tags")),
+  },
   CHAT_WIDGET: {
     widget: lazy(() => import("@/widgetLibrary/ChatWidget/chat")),
     config: CHAT_WIDGET_CONFIG,
@@ -509,6 +581,12 @@ export const WidgetConfigMap: Record<
     panelConfig: ICON_PANEL_CONFIG,
     eventHandlerConfig: ICON_EVENT_HANDLER_CONFIG,
     widget: lazy(() => import("@/widgetLibrary/IconWidget/icon")),
+  },
+  AVATAR_WIDGET: {
+    config: AVATAR_WIDGET_CONFIG,
+    panelConfig: AVATAR_PANEL_CONFIG,
+    eventHandlerConfig: AVATAR_EVENT_HANDLER_CONFIG,
+    widget: lazy(() => import("@/widgetLibrary/AvatarWidget/avatar")),
   },
   STATISTIC_WIDGET: {
     config: STATISTICS_WIDGET_CONFIG,
@@ -587,6 +665,7 @@ export const WidgetConfigMap: Record<
   IFRAME_WIDGET: {
     config: IFRAME_WIDGET_CONFIG,
     panelConfig: IFRAME_PANEL_CONFIG,
+    eventHandlerConfig: IFRAME_EVENT_HANDLER_CONFIG,
     widget: lazy(() => import("@/widgetLibrary/IFrameWidget/iframe")),
   },
 }

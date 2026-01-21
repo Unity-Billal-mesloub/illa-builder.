@@ -1,4 +1,6 @@
+import { hasDynamicStringSnippet } from "@illa-public/dynamic-string"
 import { ILLA_MIXPANEL_EVENT_TYPE } from "@illa-public/mixpanel-utils"
+import { isString } from "lodash-es"
 import { FC, useCallback, useMemo } from "react"
 import { useSelector } from "react-redux"
 import { CodeEditor } from "@/components/CodeEditor"
@@ -12,7 +14,6 @@ import {
 } from "@/page/App/components/InspectPanel/PanelSetters/InputSetter/util"
 import { PanelLabel } from "@/page/App/components/InspectPanel/components/Label"
 import { getContainerListDisplayNameMappedChildrenNodeDisplayName } from "@/redux/currentApp/components/componentsSelector"
-import { hasDynamicStringSnippet } from "@/utils/evaluateDynamicString/utils"
 import { trackInEditor } from "@/utils/mixpanelHelper"
 import { NewBaseInputSetterProps } from "./interface"
 import { applyInputSetterWrapperStyle, setterContainerStyle } from "./style"
@@ -28,6 +29,7 @@ const BaseInput: FC<NewBaseInputSetterProps> = (props) => {
     widgetDisplayName,
     labelName,
     detailedDescription,
+    defaultValue,
     labelDesc,
     widgetType,
     wrappedCodeFunc,
@@ -64,10 +66,21 @@ const BaseInput: FC<NewBaseInputSetterProps> = (props) => {
 
   const finalValue = useMemo(() => {
     if (currentListDisplayName) {
-      return realInputValueWithList(value, currentListDisplayName)
+      return realInputValueWithList(
+        value ?? defaultValue,
+        currentListDisplayName,
+      )
     }
-    return value || ""
-  }, [currentListDisplayName, value])
+
+    if (value === undefined && defaultValue === undefined) {
+      return undefined
+    }
+
+    if (!isString(value ?? defaultValue)) {
+      return `{{ ${value ?? defaultValue} }}`
+    }
+    return value ?? defaultValue
+  }, [currentListDisplayName, defaultValue, value])
 
   const onChange = useCallback(
     (value: string) => {

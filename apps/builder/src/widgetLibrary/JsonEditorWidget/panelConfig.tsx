@@ -1,4 +1,4 @@
-import { ReactComponent as RadioIcon } from "@/assets/radius-icon.svg"
+import RadioIcon from "@/assets/radius-icon.svg?react"
 import i18n from "@/i18n/config"
 import { PanelConfig } from "@/page/App/components/InspectPanel/interface"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
@@ -15,7 +15,7 @@ export const JSON_EDITOR_PANEL_CONFIG: PanelConfig[] = [
         id: `${baseWidgetName}-basic-defaultValue`,
         labelName: i18n.t("editor.inspect.setter_label.default_value"),
         labelDesc: i18n.t("editor.inspect.setter_tooltip.input_default_value"),
-        attrName: "value",
+        attrName: "defaultValue",
         expectedType: VALIDATION_TYPES.STRING,
         setterType: "INPUT_SETTER",
       },

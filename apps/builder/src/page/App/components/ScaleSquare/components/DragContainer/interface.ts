@@ -1,5 +1,5 @@
 import { ReactNode } from "react"
-import { WidgetLayoutInfo } from "@/redux/currentApp/executionTree/executionState"
+import { WidgetLayoutInfo } from "@/redux/currentApp/layoutInfo/layoutInfoState"
 
 export interface DragContainerProps {
   children: ReactNode
@@ -28,6 +28,8 @@ export interface DragInfo {
       previewH: number
     }
     canDrop: boolean
+    columnNumberWhenDrag: number
+    columnNumberWhenDrop: number
   }
   columnNumberWhenDragged: number
   unitWWhenDragged: number

@@ -1,25 +1,27 @@
 import { getCurrentTeamInfo, getPlanUtils } from "@illa-public/user-data"
-import { canManage } from "@illa-public/user-role-utils"
-import { ACTION_MANAGE, ATTRIBUTE_GROUP } from "@illa-public/user-role-utils"
+import {
+  ACTION_MANAGE,
+  ATTRIBUTE_GROUP,
+  canManage,
+} from "@illa-public/user-role-utils"
 import { Unsubscribe } from "@reduxjs/toolkit"
 import { FC, useEffect, useRef } from "react"
 import { useSelector } from "react-redux"
 import { TriggerProvider } from "@illa-design/react"
 import { Guide } from "@/components/Guide"
 import { useInitGuideApp } from "@/hooks/useInitGuideApp"
-import { ActionEditor } from "@/page/App/components/Actions"
+import { ActionEditor } from "@/page/App/Module/ActionEditor"
+import { CanvasPanel } from "@/page/App/Module/CanvasPanel"
+import ComponentsManager from "@/page/App/Module/ComponentManager"
+import { DataWorkspace } from "@/page/App/Module/DataWorkspace"
+import { PageNavBar } from "@/page/App/Module/PageNavBar"
 import { AppLoading } from "@/page/App/components/AppLoading"
-import { CanvasPanel } from "@/page/App/components/CanvasPanel"
-import ComponentsManager from "@/page/App/components/ComponentManager"
-import { DataWorkspace } from "@/page/App/components/DataWorkspace"
 import { Debugger } from "@/page/App/components/Debugger"
-import { PageNavBar } from "@/page/App/components/PageNavBar"
 import {
   bottomPanelStyle,
   centerPanelStyle,
   contentStyle,
   editorContainerStyle,
-  leftPanelStyle,
   middlePanelStyle,
   navbarStyle,
 } from "@/page/App/style"
@@ -33,10 +35,12 @@ import {
 import { setupActionListeners } from "@/redux/currentApp/action/actionListener"
 import { setupComponentsListeners } from "@/redux/currentApp/components/componentsListener"
 import { setupExecutionListeners } from "@/redux/currentApp/executionTree/executionListener"
+import { setupLayoutInfoListeners } from "@/redux/currentApp/layoutInfo/layoutInfoListener"
 import { getGuideStatus } from "@/redux/guide/guideSelector"
 import { startAppListening } from "@/store"
+import { MediaSourceLoadProvider } from "@/utils/mediaSourceLoad"
 import { Shortcut } from "@/utils/shortcut"
-import { useResize } from "../App/components/ScaleSquare/components/InnerResizingContainer/ResizeHandler/hooks"
+import { useResize } from "../App/components/ScaleSquare/components/ResizingAndDragContainer/ResizeHandler/hooks"
 
 const GuideApp: FC = () => {
   const teamInfo = useSelector(getCurrentTeamInfo)
@@ -62,6 +66,7 @@ const GuideApp: FC = () => {
     const subscriptions: Unsubscribe[] = [
       setupExecutionListeners(startAppListening),
       setupComponentsListeners(startAppListening),
+      setupLayoutInfoListeners(startAppListening),
       setupActionListeners(startAppListening),
       setupConfigListeners(startAppListening),
     ]
@@ -83,25 +88,27 @@ const GuideApp: FC = () => {
       {loadingState && <AppLoading />}
       {!loadingState && (
         <Shortcut>
-          {isOpen && <Guide canvasRef={canvasRef} />}
-          <TriggerProvider renderInBody zIndex={10}>
-            <PageNavBar css={navbarStyle} />
-          </TriggerProvider>
-          <div css={contentStyle}>
-            {showLeftPanel && <DataWorkspace css={leftPanelStyle} />}
-            <div css={middlePanelStyle}>
-              <TriggerProvider renderInBody zIndex={10}>
-                <CanvasPanel ref={canvasRef} css={centerPanelStyle} />
-              </TriggerProvider>
-              {showBottomPanel && !showDebugger ? <ActionEditor /> : null}
-              {showDebugger && <Debugger css={bottomPanelStyle} />}
+          <MediaSourceLoadProvider>
+            {isOpen && <Guide canvasRef={canvasRef} />}
+            <TriggerProvider renderInBody zIndex={10}>
+              <PageNavBar css={navbarStyle} />
+            </TriggerProvider>
+            <div css={contentStyle}>
+              {showLeftPanel && <DataWorkspace />}
+              <div css={middlePanelStyle}>
+                <TriggerProvider renderInBody zIndex={10}>
+                  <CanvasPanel ref={canvasRef} css={centerPanelStyle} />
+                </TriggerProvider>
+                {showBottomPanel && !showDebugger ? <ActionEditor /> : null}
+                {showDebugger && <Debugger css={bottomPanelStyle} />}
+              </div>
+              {showRightPanel && (
+                <TriggerProvider renderInBody zIndex={10}>
+                  <ComponentsManager />
+                </TriggerProvider>
+              )}
             </div>
-            {showRightPanel && (
-              <TriggerProvider renderInBody zIndex={10}>
-                <ComponentsManager />
-              </TriggerProvider>
-            )}
-          </div>
+          </MediaSourceLoadProvider>
         </Shortcut>
       )}
     </div>

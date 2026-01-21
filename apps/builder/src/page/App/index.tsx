@@ -12,6 +12,7 @@ import { ACTION_MANAGE, ATTRIBUTE_GROUP } from "@illa-public/user-role-utils"
 import { Unsubscribe } from "@reduxjs/toolkit"
 import { motion, useAnimation } from "framer-motion"
 import { FC, MouseEvent, useCallback, useEffect } from "react"
+import { Helmet } from "react-helmet-async"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
 import { useBeforeUnload, useParams } from "react-router-dom"
@@ -22,10 +23,10 @@ import {
   ILLA_WEBSOCKET_STATUS,
 } from "@/api/ws/interface"
 import { useInitBuilderApp } from "@/hooks/useInitApp"
-import { ActionEditor } from "@/page/App/components/Actions"
+import { ActionEditor } from "@/page/App/Module/ActionEditor"
+import { CanvasPanel } from "@/page/App/Module/CanvasPanel"
+import { ComponentsManager } from "@/page/App/Module/ComponentManager"
 import { AppLoading } from "@/page/App/components/AppLoading"
-import { CanvasPanel } from "@/page/App/components/CanvasPanel"
-import { ComponentsManager } from "@/page/App/components/ComponentManager"
 import { Debugger } from "@/page/App/components/Debugger"
 import { setupConfigListeners } from "@/redux/config/configListener"
 import {
@@ -33,31 +34,32 @@ import {
   getIsOnline,
   isOpenBottomPanel,
   isOpenDebugger,
-  isOpenLeftPanel,
   isOpenRightPanel,
 } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
 import { setupActionListeners } from "@/redux/currentApp/action/actionListener"
+import { getAppInfo } from "@/redux/currentApp/appInfo/appInfoSelector"
 import { collaboratorsActions } from "@/redux/currentApp/collaborators/collaboratorsSlice"
 import { setupComponentsListeners } from "@/redux/currentApp/components/componentsListener"
 import { setupExecutionListeners } from "@/redux/currentApp/executionTree/executionListener"
+import { setupLayoutInfoListeners } from "@/redux/currentApp/layoutInfo/layoutInfoListener"
 import { fetchAppBinaryWsUrl, fetchAppTextWsUrl } from "@/services/public"
 import { startAppListening } from "@/store"
+import { MediaSourceLoadProvider } from "@/utils/mediaSourceLoad"
 import {
   track,
   trackPageDurationEnd,
   trackPageDurationStart,
 } from "@/utils/mixpanelHelper"
 import { Shortcut } from "@/utils/shortcut"
-import { DataWorkspace } from "./components/DataWorkspace"
-import { PageNavBar } from "./components/PageNavBar"
-import { useResize } from "./components/ScaleSquare/components/InnerResizingContainer/ResizeHandler/hooks"
+import LeftPanel from "./Module/LeftPanel"
+import { PageNavBar } from "./Module/PageNavBar"
+import { useResize } from "./components/ScaleSquare/components/ResizingAndDragContainer/ResizeHandler/hooks"
 import {
   bottomPanelStyle,
   centerPanelStyle,
   contentStyle,
   editorContainerStyle,
-  leftPanelStyle,
   messageWrapperStyle,
   middlePanelStyle,
   modalStyle,
@@ -131,6 +133,7 @@ export const Editor: FC = () => {
   useEffect(() => {
     const subscriptions: Unsubscribe[] = [
       setupExecutionListeners(startAppListening),
+      setupLayoutInfoListeners(startAppListening),
       setupComponentsListeners(startAppListening),
       setupActionListeners(startAppListening),
       setupConfigListeners(startAppListening),
@@ -138,7 +141,6 @@ export const Editor: FC = () => {
     return () => subscriptions.forEach((unsubscribe) => unsubscribe())
   }, [])
 
-  const showLeftPanel = useSelector(isOpenLeftPanel)
   const showRightPanel = useSelector(isOpenRightPanel)
   const showBottomPanel = useSelector(isOpenBottomPanel)
   const showDebugger = useSelector(isOpenDebugger)
@@ -186,51 +188,58 @@ export const Editor: FC = () => {
 
   const [, resizeDropRef] = useResize()
 
+  const appInfo = useSelector(getAppInfo)
+
   const combineLoadingState =
     loadingState ||
     wsStatus === ILLA_WEBSOCKET_STATUS.INIT ||
     wsStatus === ILLA_WEBSOCKET_STATUS.CONNECTING
 
   return (
-    <div css={editorContainerStyle} ref={resizeDropRef}>
-      {combineLoadingState && <AppLoading />}
-      {!combineLoadingState && (
-        <Shortcut>
-          <TriggerProvider renderInBody zIndex={10}>
-            <PageNavBar css={navbarStyle} />
-          </TriggerProvider>
-          <div css={contentStyle}>
-            <TriggerProvider renderInBody zIndex={10}>
-              {showLeftPanel && <DataWorkspace css={leftPanelStyle} />}
-            </TriggerProvider>
-            <div css={middlePanelStyle}>
+    <>
+      <Helmet>
+        <title>{appInfo.appName}</title>
+      </Helmet>
+      <div css={editorContainerStyle} ref={resizeDropRef}>
+        {combineLoadingState && <AppLoading />}
+        {!combineLoadingState && (
+          <Shortcut>
+            <MediaSourceLoadProvider>
               <TriggerProvider renderInBody zIndex={10}>
-                <CanvasPanel css={centerPanelStyle} />
+                <PageNavBar css={navbarStyle} />
               </TriggerProvider>
-              <TriggerProvider renderInBody zIndex={10}>
-                {showBottomPanel && !showDebugger ? <ActionEditor /> : null}
-              </TriggerProvider>
-              {showDebugger && <Debugger css={bottomPanelStyle} />}
-            </div>
-            {showRightPanel && (
-              <TriggerProvider renderInBody zIndex={10}>
-                <ComponentsManager />
-              </TriggerProvider>
-            )}
-          </div>
-          {!isOnline && (
-            <div css={modalStyle} onMouseDown={handleMouseDownOnModal}>
-              <motion.div css={messageWrapperStyle} animate={controls}>
-                <WarningCircleIcon css={waringIconStyle} />
-                {wsStatus === ILLA_WEBSOCKET_STATUS.LOCKING
-                  ? t("editor.history.message.version_change")
-                  : t("not_online_tips")}
-              </motion.div>
-            </div>
-          )}
-        </Shortcut>
-      )}
-    </div>
+              <div css={contentStyle}>
+                <LeftPanel />
+                <div css={middlePanelStyle}>
+                  <TriggerProvider renderInBody zIndex={10}>
+                    <CanvasPanel css={centerPanelStyle} />
+                  </TriggerProvider>
+                  <TriggerProvider renderInBody zIndex={10}>
+                    {showBottomPanel && !showDebugger ? <ActionEditor /> : null}
+                  </TriggerProvider>
+                  {showDebugger && <Debugger css={bottomPanelStyle} />}
+                </div>
+                {showRightPanel && (
+                  <TriggerProvider renderInBody zIndex={10}>
+                    <ComponentsManager />
+                  </TriggerProvider>
+                )}
+              </div>
+              {!isOnline && (
+                <div css={modalStyle} onMouseDown={handleMouseDownOnModal}>
+                  <motion.div css={messageWrapperStyle} animate={controls}>
+                    <WarningCircleIcon css={waringIconStyle} />
+                    {wsStatus === ILLA_WEBSOCKET_STATUS.LOCKING
+                      ? t("editor.history.message.version_change")
+                      : t("not_online_tips")}
+                  </motion.div>
+                </div>
+              )}
+            </MediaSourceLoadProvider>
+          </Shortcut>
+        )}
+      </div>
+    </>
   )
 }
 

@@ -1,8 +1,14 @@
-import { ILLAApiError } from "@illa-public/illa-net"
-import { AxiosResponse } from "axios"
+import {
+  ActionContent,
+  ActionType,
+  ILLADriveAction,
+  ILLADriveActionTypeContent,
+  ILLA_DRIVE_ACTION_REQUEST_TYPE,
+  S3Action,
+  S3ActionRequestType,
+  S3ActionTypeContent,
+} from "@illa-public/public-types"
 import { isString } from "@illa-design/react"
-import { ActionType } from "../redux/currentApp/action/actionState"
-import { IActionRunResultResponseData } from "../services/action"
 
 const DISPLAY_NAME_REGEX = /^([a-zA-Z_$])([a-zA-Z0-9_$])*$/
 
@@ -73,137 +79,31 @@ export const isInt = (val: string | number): boolean => {
 export const isValidDisplayName = (displayName: string): boolean =>
   DISPLAY_NAME_REGEX.test(displayName)
 
-export const isILLAAPiError = (
-  error: unknown,
-): error is AxiosResponse<ILLAApiError> => {
+export const isClientS3ActionContent = (
+  actionType: ActionType,
+  actionContent: ActionContent,
+): actionContent is S3Action<S3ActionTypeContent> => {
   return (
-    typeof error === "object" &&
-    error !== null &&
-    "data" in error &&
-    typeof error.data === "object" &&
-    error.data !== null &&
-    "errorCode" in error.data &&
-    "errorMessage" in error.data &&
-    typeof error.data.errorMessage === "string"
+    actionType === "s3" &&
+    "commands" in actionContent &&
+    [
+      S3ActionRequestType.READ_ONE,
+      S3ActionRequestType.DOWNLOAD_ONE,
+      S3ActionRequestType.UPLOAD,
+      S3ActionRequestType.UPLOAD_MULTIPLE,
+    ].includes(actionContent.commands)
   )
 }
 
-export const isClientS3ActionResponse = (
+export const isDriveActionContent = (
   actionType: ActionType,
-  response: unknown,
-): response is AxiosResponse<BlobPart, unknown> => {
-  if (!Array.isArray(response) && actionType === "s3") {
-    return true
-  }
-  return false
-}
-
-export const isServerS3ActionResponse = (
-  isClientS3: boolean,
-  response: unknown,
-): response is AxiosResponse<
-  IActionRunResultResponseData<Record<string, any>[]>,
-  unknown
-> => {
-  return !isClientS3
-}
-
-export const isS3MultiActionResponse = (
-  actionType: ActionType,
-  response: unknown,
-): response is (
-  | AxiosResponse<BlobPart, unknown>
-  | AxiosResponse<ILLAApiError, any>
-)[] => {
-  if (Array.isArray(response) && actionType === "s3") {
-    return true
-  }
-  return false
-}
-
-export const isRestApiActionResponse = (
-  actionType: ActionType,
-  response: unknown,
-): response is AxiosResponse<
-  IActionRunResultResponseData<Record<string, any>[]>,
-  unknown
-> => {
-  if (actionType === "restapi") {
-    return true
-  }
-  return false
-}
-
-export const isHuggingFaceActionResponse = (
-  actionType: ActionType,
-  response: unknown,
-): response is AxiosResponse<
-  IActionRunResultResponseData<Record<string, any>[]>,
-  unknown
-> => {
-  if (actionType === "huggingface") {
-    return true
-  }
-  return false
-}
-
-export const isHuggingFaceEndPointActionResponse = (
-  actionType: ActionType,
-  response: unknown,
-): response is AxiosResponse<
-  IActionRunResultResponseData<Record<string, any>[]>,
-  unknown
-> => {
-  if (actionType === "hfendpoint") {
-    return true
-  }
-  return false
-}
-
-export const isLikeRestApiActionResponse = (
-  actionType: ActionType,
-  response: unknown,
-): response is AxiosResponse<
-  IActionRunResultResponseData<Record<string, any>[]>,
-  unknown
-> => {
-  if (
-    isRestApiActionResponse(actionType, response) ||
-    isHuggingFaceActionResponse(actionType, response) ||
-    isHuggingFaceEndPointActionResponse(actionType, response)
-  ) {
-    return true
-  }
-  return false
-}
-
-export const isGraphqlActionResponse = (
-  actionType: ActionType,
-  response: unknown,
-): response is AxiosResponse<
-  IActionRunResultResponseData<Record<string, any>[]>,
-  unknown
-> => {
-  if (actionType === "graphql") {
-    return true
-  }
-  return false
-}
-
-export const isDatabaseActionResponse = (
-  actionType: ActionType,
-  response: unknown,
-): response is AxiosResponse<
-  IActionRunResultResponseData<Record<string, any>[]>,
-  unknown
-> => {
-  if (
-    !isClientS3ActionResponse(actionType, response) &&
-    !isS3MultiActionResponse(actionType, response) &&
-    !isLikeRestApiActionResponse(actionType, response) &&
-    !isGraphqlActionResponse(actionType, response)
-  ) {
-    return true
-  }
-  return false
+  actionContent: ActionContent,
+): actionContent is ILLADriveAction<ILLADriveActionTypeContent> => {
+  return (
+    actionType === "illadrive" &&
+    "operation" in actionContent &&
+    Object.values(ILLA_DRIVE_ACTION_REQUEST_TYPE).includes(
+      actionContent.operation as ILLA_DRIVE_ACTION_REQUEST_TYPE,
+    )
+  )
 }

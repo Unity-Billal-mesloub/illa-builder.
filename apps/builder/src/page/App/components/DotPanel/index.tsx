@@ -5,13 +5,10 @@ import { useParams } from "react-router-dom"
 import { applyViewportContainerWrapperStyle } from "@/page/App/components/DotPanel/style"
 import {
   getIllaMode,
+  getIsILLAPreviewMode,
   getIsILLAProductMode,
 } from "@/redux/config/configSelector"
-import {
-  getCanvas,
-  getViewportSizeSelector,
-} from "@/redux/currentApp/components/componentsSelector"
-import { RootComponentNode } from "@/redux/currentApp/components/componentsState"
+import { getViewportSizeSelector } from "@/redux/currentApp/components/componentsSelector"
 import {
   getAppLoadedActions,
   getExecutionResult,
@@ -32,12 +29,13 @@ import { MouseHoverProvider } from "./context/mouseHoverContext"
 import { MouseMoveProvider } from "./context/mouseMoveContext"
 
 export const DotPanel: FC = () => {
-  const canvasTree = useSelector(getCanvas) as RootComponentNode
   const rootExecutionProps = useSelector(getRootNodeExecutionResult)
   const executionResult = useSelector(getExecutionResult)
   const mode = useSelector(getIllaMode)
   const isProductionMode = useSelector(getIsILLAProductMode)
   const viewportSize = useSelector(getViewportSizeSelector)
+
+  const isPreviewMode = useSelector(getIsILLAPreviewMode)
 
   const { currentPageIndex, pageSortedKey, homepageDisplayName } =
     rootExecutionProps
@@ -60,6 +58,7 @@ export const DotPanel: FC = () => {
     pageName,
     pageSortedKey,
   ])
+
   const canRenders = !!executionResult.root
 
   useEffect(() => {
@@ -95,28 +94,16 @@ export const DotPanel: FC = () => {
     }
   })
 
-  if (
-    !canvasTree ||
-    canvasTree.containerType !== "EDITOR_DOT_PANEL" ||
-    canvasTree.type !== "DOT_PANEL" ||
-    canvasTree.displayName !== "root" ||
-    !rootExecutionProps
-  )
-    return null
+  if (!rootExecutionProps) return null
 
-  const currentChildrenNode = canvasTree.childrenNode.find((node) => {
-    return node.displayName === currentDisplayName
-  })
-
-  if (currentChildrenNode == undefined) return null
   return (
     <MouseHoverProvider>
       <MouseMoveProvider>
         <div
           css={applyViewportContainerWrapperStyle(
             mode,
-            viewportSize.viewportWidth,
-            viewportSize.viewportHeight,
+            isPreviewMode ? viewportSize.viewportWidth : undefined,
+            isPreviewMode ? viewportSize.viewportHeight : undefined,
           )}
         >
           <RenderPage

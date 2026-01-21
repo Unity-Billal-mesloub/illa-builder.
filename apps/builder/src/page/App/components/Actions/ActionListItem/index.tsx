@@ -1,5 +1,7 @@
+import { getIconFromResourceType } from "@illa-public/icon"
 import { ILLA_MIXPANEL_EVENT_TYPE } from "@illa-public/mixpanel-utils"
-import { isEqual } from "lodash"
+import { Agent, GlobalDataActionContent } from "@illa-public/public-types"
+import { isEqual } from "lodash-es"
 import {
   Suspense,
   forwardRef,
@@ -21,21 +23,13 @@ import {
   useMessage,
 } from "@illa-design/react"
 import { ActionListItemProps } from "@/page/App/components/Actions/ActionListItem/interface"
-import {
-  getAgentIcon,
-  getIconFromActionType,
-} from "@/page/App/components/Actions/getIcon"
+import { getAgentIcon } from "@/page/App/components/Actions/getIcon"
 import {
   getCachedAction,
   getIsILLAGuideMode,
   getSelectedAction,
 } from "@/redux/config/configSelector"
 import { actionActions } from "@/redux/currentApp/action/actionSlice"
-import {
-  ActionItem,
-  GlobalDataActionContent,
-} from "@/redux/currentApp/action/actionState"
-import { AiAgentActionContent } from "@/redux/currentApp/action/aiAgentAction"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
 import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
 import { fetchUpdateAction } from "@/services/action"
@@ -82,6 +76,9 @@ export const ActionListItem = forwardRef<HTMLDivElement, ActionListItemProps>(
     const endRunningTime: number = executionResult[action.displayName]?.endTime
 
     const isRunning: boolean = executionResult[action.displayName]?.isRunning
+
+    const isMocking: boolean =
+      executionResult[action.displayName]?.config?.mockConfig?.enabled
 
     const [currentRunningTime, setCurrentRunningTime] = useState(0)
 
@@ -276,13 +273,13 @@ export const ActionListItem = forwardRef<HTMLDivElement, ActionListItemProps>(
           <div css={actionItemLeftStyle}>
             <div css={actionIconContainer}>
               <Suspense>
-                {action.actionType === "aiagent"
+                {action.actionType === "aiagent" &&
+                "virtualResource" in action.content
                   ? getAgentIcon(
-                      (action as ActionItem<AiAgentActionContent>).content
-                        ?.virtualResource,
+                      action.content.virtualResource as Agent,
                       "16px",
                     )
-                  : getIconFromActionType(action.actionType, "16px")}
+                  : getIconFromResourceType(action.actionType, "16px")}
               </Suspense>
               {error && <WarningCircleIcon css={warningCircleStyle} />}
             </div>
@@ -314,9 +311,11 @@ export const ActionListItem = forwardRef<HTMLDivElement, ActionListItemProps>(
             {isChanged && <div css={actionItemDotStyle} />}
           </div>
           <div css={runningTimeStyle}>
-            {isRunning
-              ? calcLoadingTimeString(currentRunningTime)
-              : calcTimeString(startRunningTime, endRunningTime)}
+            {isMocking
+              ? t("editor.action.panel.option.mock.label")
+              : isRunning
+                ? calcLoadingTimeString(currentRunningTime)
+                : calcTimeString(startRunningTime, endRunningTime)}
           </div>
         </div>
       </Dropdown>

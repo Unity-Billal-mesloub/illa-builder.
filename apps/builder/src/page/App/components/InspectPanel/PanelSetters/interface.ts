@@ -1,5 +1,5 @@
+import { ComponentMapNode } from "@illa-public/public-types"
 import { ReactNode } from "react"
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
 
 export interface BaseSetter {
@@ -15,13 +15,17 @@ export interface BaseSetter {
     displayName: string,
     updateSlice: Record<string, unknown>,
   ) => void
+  handleUpdateExecutionResult?: (
+    displayName: string,
+    updateSlice: Record<string, unknown>,
+  ) => void
   expectedType?: VALIDATION_TYPES
   attrNames?: string[]
   widgetDisplayName: string
   widgetType: string
   widgetOrAction: "ACTION" | "WIDGET"
   defaultValue?: any
-  componentNode?: ComponentNode
+  componentNode?: ComponentMapNode
   detailedDescription?: string
   labelName?: string
   labelDesc?: string

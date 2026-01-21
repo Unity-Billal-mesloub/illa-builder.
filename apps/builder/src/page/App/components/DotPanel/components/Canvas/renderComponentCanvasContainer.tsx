@@ -39,7 +39,7 @@ import {
   DRAG_EFFECT,
   DragInfo,
 } from "@/page/App/components/ScaleSquare/components/DragContainer/interface"
-import { useResizingUpdateRealTime } from "@/page/App/components/ScaleSquare/components/InnerResizingContainer/ResizeHandler/hooks"
+import { useResizingUpdateRealTime } from "@/page/App/components/ScaleSquare/components/ResizingAndDragContainer/ResizeHandler/hooks"
 import {
   getIsILLAEditMode,
   getIsLikeProductMode,
@@ -53,10 +53,10 @@ import {
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
 import {
   getCurrentPageDisplayName,
-  getExecutionWidgetLayoutInfo,
   getIsDragging,
   getIsResizing,
 } from "@/redux/currentApp/executionTree/executionSelector"
+import { getClientWidgetLayoutInfo } from "@/redux/currentApp/layoutInfo/layoutInfoSelector"
 import { FocusManager } from "@/utils/focusManager"
 import { newGenerateComponentNode } from "@/utils/generators/generateComponentNode"
 import { getPaddingShape } from "@/utils/styleUtils/padding"
@@ -125,7 +125,7 @@ const RenderComponentCanvasContainer: FC<
   const unitWidth = fixedBounds.width / columnNumber
 
   const [canvasHeight, setCanvasHeight] = useState<number>(fixedBounds.height)
-  const widgetLayoutInfo = useSelector(getExecutionWidgetLayoutInfo)
+  const widgetLayoutInfo = useSelector(getClientWidgetLayoutInfo)
   const childWidgetLayoutInfo = Object.values(widgetLayoutInfo).filter(
     (item) => item.parentNode === displayName,
   )
@@ -136,9 +136,8 @@ const RenderComponentCanvasContainer: FC<
   const isLikeProductMode = useSelector(getIsLikeProductMode)
 
   const isEditMode = useSelector(getIsILLAEditMode)
-  const layoutInfos = useSelector(getExecutionWidgetLayoutInfo)
 
-  const currentLayoutInfo = layoutInfos[displayName]
+  const currentLayoutInfo = widgetLayoutInfo[displayName]
 
   const [collectedProps, dropRef] = useDrop<
     DragInfo,
@@ -197,7 +196,11 @@ const RenderComponentCanvasContainer: FC<
           }
         }
 
-        const { shape: dropResultShape } = dropResult
+        const {
+          shape: dropResultShape,
+          columnNumberWhenDrag,
+          columnNumberWhenDrop,
+        } = dropResult
 
         if (draggedComponents.length === 1) {
           switch (dragEffect) {
@@ -209,6 +212,8 @@ const RenderComponentCanvasContainer: FC<
                 draggedComponents[0].widgetType,
                 draggedComponents[0].displayName,
                 displayName,
+                [],
+                columnNumberWhenDrop / columnNumberWhenDrag,
               )
 
               if (newComponentNode.type === "MODAL_WIDGET") {
@@ -237,51 +242,47 @@ const RenderComponentCanvasContainer: FC<
                 },
               ]
               dispatch(
-                componentsActions.updateComponentContainerReducer({
+                componentsActions.updateComponentPositionReducer({
                   oldParentNodeDisplayName: originParentNode,
                   newParentNodeDisplayName: displayName,
                   updateSlices,
+                  columnNumberWhenDrag,
+                  columnNumberWhenDrop,
                 }),
               )
             }
           }
         }
 
-        if (draggedComponents.length > 1) {
-          switch (dragEffect) {
-            case DRAG_EFFECT.ADD: {
+        if (draggedComponents.length > 1 && dragEffect === DRAG_EFFECT.UPDATE) {
+          const relativeLayoutInfo =
+            getLayoutInfosWithRelativeCombineShape(draggedComponents)
+          const updateSlices = relativeLayoutInfo.map((item) => {
+            const shape = clamWidgetShape(
+              {
+                x: item.layoutInfo.x + dropResultShape.x,
+                y: item.layoutInfo.y + dropResultShape.y,
+                w: item.layoutInfo.w,
+                h: item.layoutInfo.h,
+              },
+              columnNumber,
+              draggedComponents.length > 1,
+            )
+            return {
+              ...shape,
+              h: shape.previewH,
+              displayName: item.displayName,
             }
-
-            case DRAG_EFFECT.UPDATE: {
-              const relativeLayoutInfo =
-                getLayoutInfosWithRelativeCombineShape(draggedComponents)
-
-              const updateSlices = relativeLayoutInfo.map((item) => {
-                const shape = clamWidgetShape(
-                  {
-                    x: item.layoutInfo.x + dropResultShape.x,
-                    y: item.layoutInfo.y + dropResultShape.y,
-                    w: item.layoutInfo.w,
-                    h: item.layoutInfo.h,
-                  },
-                  columnNumber,
-                  draggedComponents.length > 1,
-                )
-                return {
-                  ...shape,
-                  h: shape.previewH,
-                  displayName: item.displayName,
-                }
-              })
-              dispatch(
-                componentsActions.updateComponentContainerReducer({
-                  oldParentNodeDisplayName: originParentNode,
-                  newParentNodeDisplayName: displayName,
-                  updateSlices,
-                }),
-              )
-            }
-          }
+          })
+          dispatch(
+            componentsActions.updateComponentPositionReducer({
+              oldParentNodeDisplayName: originParentNode,
+              newParentNodeDisplayName: displayName,
+              updateSlices,
+              columnNumberWhenDrag,
+              columnNumberWhenDrop,
+            }),
+          )
         }
 
         const mousePosition = cursorPositionRef.current
@@ -388,9 +389,14 @@ const RenderComponentCanvasContainer: FC<
     if (!innerCanvasDOM) return
     const innerCanvasDOMRect = innerCanvasDOM.getBoundingClientRect()
 
-    if (isFinite(maxHeight) && prevMaxHeight.current > maxHeight) {
+    if (
+      isFinite(maxHeight) &&
+      prevMaxHeight.current > maxHeight &&
+      isResizingGlobal
+    ) {
       return
     }
+
     if (canResizeCanvas) {
       if (isFinite(maxHeight)) {
         setCanvasHeight(maxHeight * UNIT_HEIGHT)
@@ -420,10 +426,9 @@ const RenderComponentCanvasContainer: FC<
     setCanvasHeight(maxHeight * UNIT_HEIGHT)
   }, [
     canResizeCanvas,
-    childWidgetLayoutInfo,
-    displayName,
     fixedBounds.height,
     isEditMode,
+    isResizingGlobal,
     isRootCanvas,
     maxHeight,
     minHeight,
@@ -523,6 +528,7 @@ const RenderComponentCanvasContainer: FC<
         background,
         shadowSize,
       )}
+      data-outer-canvas-container={displayName}
       ref={canvasRef}
     >
       <div
@@ -532,6 +538,7 @@ const RenderComponentCanvasContainer: FC<
         data-column-number={columnNumber}
         data-unit-width={unitWidth}
         data-is-dragging-over={false}
+        className="scroll-container"
       >
         <div
           ref={(node) => {
@@ -551,6 +558,7 @@ const RenderComponentCanvasContainer: FC<
             data-canvas-container={displayName}
             data-column-number={columnNumber}
             data-unit-width={unitWidth}
+            data-list-widget-container
           >
             {isEditMode && (
               <DragShadowPreview
@@ -566,7 +574,7 @@ const RenderComponentCanvasContainer: FC<
               currentLayoutInfo?.childrenNode?.map((childName) => {
                 return (
                   <ComponentParser
-                    key={`${displayName}-${childName}}`}
+                    key={`${displayName}-${childName}`}
                     displayName={childName}
                     unitW={unitWidth}
                     parentNodeDisplayName={displayName}
@@ -582,9 +590,6 @@ const RenderComponentCanvasContainer: FC<
             )}
             {collectedProps.isOver && isEditMode && (
               <DragPreview
-                containerLeft={fixedBounds.left}
-                containerTop={fixedBounds.top}
-                containerScrollTop={scrollContainerScrollTop}
                 unitW={unitWidth}
                 parentNodeDisplayName={displayName}
                 columnNumber={columnNumber}

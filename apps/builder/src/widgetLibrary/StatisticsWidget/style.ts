@@ -1,5 +1,10 @@
 import { css } from "@emotion/react"
-import { getColor, globalColor, illaPrefix } from "@illa-design/react"
+import {
+  getColor,
+  getSpecialThemeColor,
+  globalColor,
+  illaPrefix,
+} from "@illa-design/react"
 
 const overflowStyle = css`
   overflow: hidden;
@@ -37,41 +42,27 @@ export const getStatisticWrapperStyle = (textAlign?: string) => {
     ${alignItemsStyle};
   `
 }
-export const getSecondaryStatisticStyle = (color?: string) => {
-  return css`
-    max-width: 100%;
-    overflow: hidden;
-    & > div:last-child > div,
-    & > div:last-child > div > span {
-      color: ${getColor(color || "", "03")};
-      max-width: 100%;
-    }
-    & span {
-      font-size: 12px;
-      font-weight: 500;
-      line-height: 18px;
-    }
-  `
-}
+export const getSecondaryStatisticStyle = css`
+  max-width: 100%;
+  overflow: hidden;
+  & span {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+  }
+`
 
-export const getStatisticStyle = (color?: string) => {
-  return css`
-    max-width: 100%;
-    overflow: hidden;
-    white-space: nowrap;
-    & > div:last-child > div,
-    & > div:last-child > div > span {
-      color: ${getColor(color || "", "03")};
-      max-width: 100%;
-    }
-    line-height: 36px;
-  `
-}
+export const getStatisticStyle = css`
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 36px;
+`
 
 export const getPrefixIconStyle = (color?: string, secondary?: boolean) => {
   const size = secondary ? 12 : 24
   return css`
-    color: ${getColor(color || "", "03")};
+    color: ${getSpecialThemeColor(color || "")};
     display: inline-flex;
     height: 100%;
     align-items: center;
@@ -120,17 +111,7 @@ export const getSecondaryStatisticContainerStyle = (color?: string) => {
     height: 18px;
     padding: 0 4px;
     border-radius: 2px;
-    background: ${getColor(color || "", "07")};
-    & span {
-      line-height: 18px;
-      font-size: 12px;
-      margin-right: 2px;
-      margin-left: 0;
-    }
-    & > div > div > div {
-      display: flex;
-      align-items: center;
-    }
+    background: ${getColor(color || "", "08")};
   `
 }
 

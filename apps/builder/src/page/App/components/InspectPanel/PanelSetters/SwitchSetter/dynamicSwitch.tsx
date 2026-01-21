@@ -1,5 +1,5 @@
 import { ILLA_MIXPANEL_EVENT_TYPE } from "@illa-public/mixpanel-utils"
-import { get } from "lodash"
+import { get } from "lodash-es"
 import { FC, useCallback } from "react"
 import { Switch } from "@illa-design/react"
 import { DynamicIcon } from "@/page/App/components/InspectPanel/PanelSetters/PublicComponent/DynamicIcon"
@@ -18,16 +18,17 @@ const DynamicSwitchSetter: FC<DynamicSwitchProps> = (props) => {
     attrName,
     labelName,
     labelDesc,
-    panelConfig,
     handleUpdateDsl,
+    defaultValue,
     handleUpdateMultiAttrDSL,
     value,
     openDynamic,
     detailedDescription,
     widgetType,
+    componentNode,
   } = props
 
-  const customSelected = get(panelConfig, `${attrName}Dynamic`, false)
+  const customSelected = get(componentNode, `props.${attrName}Dynamic`, false)
 
   const handleClickDynamicIcon = useCallback(() => {
     if (customSelected) {
@@ -71,6 +72,7 @@ const DynamicSwitchSetter: FC<DynamicSwitchProps> = (props) => {
           )}
           {!customSelected && (
             <Switch
+              defaultValue={defaultValue}
               onChange={(value) => {
                 handleUpdateDsl(attrName, value)
                 trackInEditor(ILLA_MIXPANEL_EVENT_TYPE.CLICK, {

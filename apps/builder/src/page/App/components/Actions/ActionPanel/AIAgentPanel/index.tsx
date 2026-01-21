@@ -1,4 +1,5 @@
 import { getLLM } from "@illa-public/market-agent"
+import { AiAgentActionContent, Params } from "@illa-public/public-types"
 import { FC, useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
@@ -8,13 +9,8 @@ import { CODE_LANG } from "@/components/CodeEditor/CodeMirror/extensions/interfa
 import { RecordEditor } from "@/components/RecordEditor"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { AiAgentActionContent } from "@/redux/currentApp/action/aiAgentAction"
-import { Params } from "@/redux/resource/restapiResource"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
-import { AIAgentResourceChoose } from "../AIAgentResourceChoose"
-import { ActionEventHandler } from "../ActionEventHandler"
 import HorizontalWithLabel from "../Layout/HorizontalWithLabel"
-import ActionPanelSpace from "../Layout/Space"
 import { TransformerComponent } from "../TransformerComponent"
 
 const AIAgentPanel: FC = () => {
@@ -57,13 +53,13 @@ const AIAgentPanel: FC = () => {
   )
 
   const variables = useMemo(() => {
-    const resourcesKeys = aiAgentContent.virtualResource.variables.map(
+    const resourcesKeys = (aiAgentContent.virtualResource?.variables ?? []).map(
       (item) => item.key,
     )
 
     let resourcesKeyValues: Record<string, string> = {}
-    if (aiAgentContent.virtualResource.variables.length > 0) {
-      aiAgentContent.virtualResource.variables.forEach((item) => {
+    if ((aiAgentContent.virtualResource?.variables ?? []).length > 0) {
+      ;(aiAgentContent.virtualResource?.variables ?? []).forEach((item) => {
         if (!item) return
         resourcesKeyValues[item.key] = item.value
       })
@@ -85,20 +81,20 @@ const AIAgentPanel: FC = () => {
       }
     })
     return variable
-  }, [aiAgentContent.variables, aiAgentContent.virtualResource.variables])
+  }, [aiAgentContent.variables, aiAgentContent.virtualResource?.variables])
 
   return (
     <div>
-      <AIAgentResourceChoose />
-      <ActionPanelSpace />
-      <HorizontalWithLabel labelName={t("editor.ai-agent.label.model")}>
-        <Input
-          prefix={getLLM(aiAgentContent.virtualResource.model)?.logo}
-          colorScheme="techPurple"
-          readOnly
-          value={getLLM(aiAgentContent.virtualResource.model)?.name}
-        />
-      </HorizontalWithLabel>
+      {aiAgentContent.virtualResource && (
+        <HorizontalWithLabel labelName={t("editor.ai-agent.label.model")}>
+          <Input
+            prefix={getLLM(aiAgentContent.virtualResource.model)?.logo}
+            colorScheme="techPurple"
+            readOnly
+            value={getLLM(aiAgentContent.virtualResource.model)?.name}
+          />
+        </HorizontalWithLabel>
+      )}
       {variables.length > 0 && (
         <RecordEditor
           fillOnly
@@ -119,7 +115,6 @@ const AIAgentPanel: FC = () => {
         />
       </HorizontalWithLabel>
       <TransformerComponent />
-      <ActionEventHandler />
     </div>
   )
 }

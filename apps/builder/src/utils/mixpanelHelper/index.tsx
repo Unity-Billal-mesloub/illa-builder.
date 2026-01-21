@@ -11,7 +11,7 @@ import {
   getIsILLAProductMode,
 } from "@/redux/config/configSelector"
 import { getAppInfo } from "@/redux/currentApp/appInfo/appInfoSelector"
-import { getCanvas } from "@/redux/currentApp/components/componentsSelector"
+import { getRootComponentNode } from "@/redux/currentApp/components/componentsSelector"
 import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
 import { getGuideInfo } from "@/redux/guide/guideSelector"
 import { ILLARoute } from "@/router"
@@ -29,7 +29,7 @@ const getInfoFromUrl = () => {
 
 const getPreviewInfo = () => {
   const rootState = store.getState()
-  const rootNode = getCanvas(rootState)
+  const rootNode = getRootComponentNode(rootState)
   const isProduction = getIsILLAProductMode(rootState)
   const rootProps = rootNode?.props
   if (!rootProps)
@@ -206,16 +206,6 @@ export const trackPageDurationEnd = (pageName: ILLA_PAGE_NAME) => {
   const { teamIdentifier } = getInfoFromUrl()
 
   ILLAMixpanel.trackTimeEvent(pageName, teamIdentifier ?? "-1")
-}
-
-export const trackInDashboard = (
-  event: ILLA_MIXPANEL_EVENT_TYPE,
-  pageName: ILLA_PAGE_NAME,
-  properties: Omit<ILLAProperties, "page">,
-) => {
-  track(event, pageName, {
-    ...properties,
-  })
 }
 
 export const resourceContextHelper = (parameter1: string) => {

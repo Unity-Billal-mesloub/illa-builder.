@@ -1,12 +1,12 @@
-import { get } from "lodash"
+import { get } from "lodash-es"
 import { FC, useCallback, useMemo } from "react"
 import { useSelector } from "react-redux"
 import { ChartDatasetShape } from "@/page/App/components/InspectPanel/PanelSetters/ChartSetter/chartDatasetsSetter/interface"
 import { CHART_PRESET_COLOR } from "@/page/App/components/InspectPanel/PanelSetters/ChartSetter/chartDatasetsSetter/listItem"
 import { ChartDataSourceSetterProps } from "@/page/App/components/InspectPanel/PanelSetters/ChartSetter/interface"
 import {
-  getCanvas,
-  searchDsl,
+  getComponentMap,
+  searchComponentFromMap,
 } from "@/redux/currentApp/components/componentsSelector"
 import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
 import { RootState } from "@/store"
@@ -26,8 +26,8 @@ const ChartKeysSelectSetter: FC<ChartDataSourceSetterProps> = (props) => {
 
   const insertValues = useSelector<RootState, Record<string, any>>(
     (rootState) => {
-      const targetComponentNode = searchDsl(
-        getCanvas(rootState),
+      const targetComponentNode = searchComponentFromMap(
+        getComponentMap(rootState),
         widgetDisplayName,
       )
       if (!targetComponentNode) return {}

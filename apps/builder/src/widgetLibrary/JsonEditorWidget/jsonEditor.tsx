@@ -1,4 +1,5 @@
 import { ReactCodeMirrorRef } from "@uiw/react-codemirror"
+import { debounce } from "lodash-es"
 import { FC, useCallback, useEffect, useRef } from "react"
 import { BaseJsonEditor } from "@/widgetLibrary/JsonEditorWidget/baseJsonEditor"
 import { JsonEditorWidgetProps } from "@/widgetLibrary/JsonEditorWidget/interface"
@@ -9,6 +10,7 @@ export const JsonEditorWidget: FC<JsonEditorWidgetProps> = (props) => {
     displayName,
     tooltipText,
     value,
+    defaultValue,
     triggerEventHandler,
     handleUpdateMultiExecutionResult,
     updateComponentRuntimeProps,
@@ -17,22 +19,36 @@ export const JsonEditorWidget: FC<JsonEditorWidgetProps> = (props) => {
 
   const editorRef = useRef<ReactCodeMirrorRef>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const cacheDefaultValue = useRef(defaultValue)
   const cacheValue = useRef(value)
+
+  const debounceUpdateOnChange = useRef(
+    debounce(
+      (
+        value: unknown,
+        triggerEventHandler: JsonEditorWidgetProps["triggerEventHandler"],
+      ) => {
+        if (typeof value === "string") {
+          handleUpdateMultiExecutionResult([
+            {
+              displayName,
+              value: {
+                value: value,
+              },
+            },
+          ])
+          triggerEventHandler("change")
+        }
+      },
+      180,
+    ),
+  )
 
   const updateOnChange = useCallback(
     (value: unknown) => {
-      if (typeof value === "string") {
-        handleUpdateMultiExecutionResult([
-          {
-            displayName,
-            value: {
-              value: value,
-            },
-          },
-        ])
-      }
+      debounceUpdateOnChange.current(value, triggerEventHandler)
     },
-    [displayName, handleUpdateMultiExecutionResult],
+    [triggerEventHandler],
   )
 
   const handleOnFocus = useCallback(() => {
@@ -43,16 +59,34 @@ export const JsonEditorWidget: FC<JsonEditorWidgetProps> = (props) => {
     triggerEventHandler("blur")
   }, [triggerEventHandler])
 
-  const handleOnChange = useCallback(() => {
-    triggerEventHandler("change")
-  }, [triggerEventHandler])
+  useEffect(() => {
+    if (cacheDefaultValue.current !== defaultValue) {
+      cacheDefaultValue.current = defaultValue
+    }
+  }, [defaultValue])
+
+  useEffect(() => {
+    if (
+      cacheDefaultValue.current === defaultValue &&
+      cacheValue.current !== cacheDefaultValue.current
+    ) {
+      handleUpdateMultiExecutionResult([
+        {
+          displayName,
+          value: {
+            value: defaultValue,
+          },
+        },
+      ])
+      cacheValue.current = defaultValue
+    }
+  }, [defaultValue, displayName, handleUpdateMultiExecutionResult])
 
   useEffect(() => {
     if (cacheValue.current !== value) {
-      handleOnChange()
       cacheValue.current = value
     }
-  }, [handleOnChange, value])
+  }, [value])
 
   useEffect(() => {
     updateComponentRuntimeProps({

@@ -1,15 +1,15 @@
+import {
+  FirebaseCollectionType,
+  QueryFirebase,
+} from "@illa-public/public-types"
 import { FC } from "react"
 import { useTranslation } from "react-i18next"
 import { CollectionInput } from "@/page/App/components/Actions/ActionPanel/FirebasePanel/components/CollectionInput"
 import { CollectionRecordEditor } from "@/page/App/components/Actions/ActionPanel/FirebasePanel/components/CollectionRecordEditor"
 import { FirebaseActionPartProps } from "@/page/App/components/Actions/ActionPanel/FirebasePanel/intreface"
 import { checkboxContainer } from "@/page/App/components/Actions/ActionPanel/FirebasePanel/style"
-import { CheckboxInput } from "@/page/App/components/CheckboxInput"
-import { InputEditor } from "@/page/App/components/InputEditor"
-import {
-  CollectionType,
-  QueryFirebase,
-} from "@/redux/currentApp/action/firebaseAction"
+import { CheckboxInput } from "@/page/App/components/Actions/CheckboxInput"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
 
 export const QueryFirebasePart: FC<FirebaseActionPartProps> = (props) => {
@@ -22,7 +22,7 @@ export const QueryFirebasePart: FC<FirebaseActionPartProps> = (props) => {
       <CollectionInput
         handleValueChange={handleValueChange}
         value={options.collection}
-        collectionType={options.collectionType as CollectionType}
+        collectionType={options.collectionType as FirebaseCollectionType}
       />
       <CollectionRecordEditor
         name="where"

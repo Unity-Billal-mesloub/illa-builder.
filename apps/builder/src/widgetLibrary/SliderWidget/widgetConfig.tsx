@@ -1,4 +1,4 @@
-import { ReactComponent as SliderWidgetIcon } from "@/assets/widgetCover/slider.svg"
+import SliderWidgetIcon from "@/assets/widgetCover/slider.svg?react"
 import i18n from "@/i18n/config"
 import { RESIZE_DIRECTION, WidgetConfig } from "@/widgetLibrary/interface"
 
@@ -14,7 +14,8 @@ export const SLIDER_WIDGET_CONFIG: WidgetConfig = {
   resizeDirection: RESIZE_DIRECTION.HORIZONTAL,
   version: 0,
   defaults: {
-    value: "{{2}}",
+    value: undefined,
+    defaultValue: "{{2}}",
     min: "{{0}}",
     max: "{{10}}",
     step: "{{1}}",

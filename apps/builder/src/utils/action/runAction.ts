@@ -1,5 +1,13 @@
-import { ILLAApiError } from "@illa-public/illa-net"
-import { AxiosResponse } from "axios"
+import { isILLAAPiError } from "@illa-public/illa-net"
+import {
+  ActionContent,
+  ActionType,
+  MysqlLikeAction,
+  RestAPIAction,
+  RestAPIBodyContent,
+  SMPTAction,
+} from "@illa-public/public-types"
+import { ActionItem } from "@illa-public/public-types"
 import { createMessage } from "@illa-design/react"
 import { GUIDE_DEFAULT_ACTION_ID } from "@/config/guide"
 import i18n from "@/i18n/config"
@@ -9,34 +17,21 @@ import {
   getIsILLAProductMode,
 } from "@/redux/config/configSelector"
 import { getActionList } from "@/redux/currentApp/action/actionSelector"
-import {
-  ActionContent,
-  ActionItem,
-  ActionType,
-} from "@/redux/currentApp/action/actionState"
 import { Events } from "@/redux/currentApp/action/actionState"
-import { MysqlLikeAction } from "@/redux/currentApp/action/mysqlLikeAction"
-import {
-  BodyContent,
-  RestApiAction,
-} from "@/redux/currentApp/action/restapiAction"
-import {
-  ClientS3,
-  S3Action,
-  S3ActionTypeContent,
-} from "@/redux/currentApp/action/s3Action"
-import { SMPTAction } from "@/redux/currentApp/action/smtpAction"
 import { getAppId } from "@/redux/currentApp/appInfo/appInfoSelector"
 import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
-import {
-  IActionRunResultResponseData,
-  fetchActionRunResult,
-} from "@/services/action"
+import { fetchActionRunResult } from "@/services/action"
 import store from "@/store"
 import { transformDataFormat } from "@/utils/action/transformDataFormat"
 import { ILLAEditorRuntimePropsCollectorInstance } from "@/utils/executionTreeHelper/runtimePropsCollector"
-import { isILLAAPiError } from "@/utils/typeHelper"
+import {
+  isClientS3ActionContent,
+  isDriveActionContent,
+} from "@/utils/typeHelper"
+import { fetchILLADriveClientResult } from "./driveActions"
 import { fetchS3ClientResult } from "./fetchS3ClientResult"
+import { isNeedPreventForPremium } from "./premiumActionHandler"
+import { runActionErrorForColla } from "./runActionErrorForColla"
 import { runAllEventHandler } from "./runActionEventHandler"
 import { runTransformer } from "./runActionTransformer"
 import { transResponse } from "./transResponse"
@@ -60,7 +55,7 @@ const checkCanSendRequest = (
   return !result
 }
 
-const fetchActionResult = async (
+export const fetchCommonActionResult = async (
   isPublic: boolean,
   resourceID: string,
   actionType: ActionType,
@@ -68,10 +63,12 @@ const fetchActionResult = async (
   appId: string,
   actionID: string,
   actionContent: ActionContent,
+  actionContext: Record<string, unknown> = {},
   abortSignal?: AbortSignal,
 ) => {
   const canSendRequest = checkCanSendRequest(actionType, actionContent)
-  if (!canSendRequest) {
+  const needPreventPremiumAction = isNeedPreventForPremium(actionType)
+  if (!canSendRequest || needPreventPremiumAction) {
     return Promise.reject(false)
   }
 
@@ -80,6 +77,7 @@ const fetchActionResult = async (
     actionType,
     displayName,
     content: actionContent,
+    context: actionContext,
   }
   return await fetchActionRunResult(
     appId,
@@ -90,9 +88,50 @@ const fetchActionResult = async (
   )
 }
 
+export const fetchActionResult = async (
+  actionType: ActionType,
+  isProductionMode: boolean,
+  isPublic: boolean,
+  resourceID: string,
+  displayName: string,
+  appId: string,
+  currentActionId: string,
+  actionContent: ActionContent,
+  $context: Record<string, unknown>,
+  abortSignal: AbortSignal | undefined,
+) => {
+  let response = await fetchCommonActionResult(
+    !isProductionMode ? false : isPublic,
+    (resourceID as string) || "",
+    actionType as ActionType,
+    displayName,
+    appId,
+    currentActionId,
+    actionContent,
+    $context,
+    abortSignal,
+  )
+
+  if (isClientS3ActionContent(actionType, actionContent)) {
+    response = await fetchS3ClientResult(response.data.Rows, actionContent)
+  } else if (isDriveActionContent(actionType, actionContent)) {
+    response = await fetchILLADriveClientResult(
+      !isProductionMode ? false : isPublic,
+      (resourceID as string) || "",
+      displayName,
+      appId,
+      currentActionId,
+      actionContent,
+      response,
+    )
+  }
+  return transResponse(actionType, actionContent, response)
+}
+
 export interface IExecutionActions extends ActionItem<ActionContent> {
   $actionID: string
   $resourceID: string
+  $context: Record<string, unknown>
 }
 
 export const runActionWithExecutionResult = async (
@@ -101,9 +140,17 @@ export const runActionWithExecutionResult = async (
   abortSignal?: AbortSignal,
 ) => {
   const { displayName } = action as ActionItem<
-    MysqlLikeAction | RestApiAction<BodyContent>
+    MysqlLikeAction | RestAPIAction<RestAPIBodyContent>
   >
-  const { content, $actionID, $resourceID, actionType, transformer } = action
+  const {
+    content,
+    $actionID,
+    $resourceID,
+    actionType,
+    transformer,
+    $context,
+    config,
+  } = action
   const originActionList = getActionList(store.getState())
   const originAction = originActionList.find(
     (item) => item.displayName === displayName,
@@ -119,6 +166,7 @@ export const runActionWithExecutionResult = async (
     ...restContent
   } = content as ActionContent & Events
 
+  const mockConfig = config?.mockConfig!
   const {
     successEvent: originSuccessEvent = [],
     failedEvent: originFailedEvent = [],
@@ -146,41 +194,30 @@ export const runActionWithExecutionResult = async (
   ) as string
 
   try {
-    let response:
-      | AxiosResponse<
-          IActionRunResultResponseData<Record<string, any>[]>,
-          unknown
-        >
-      | AxiosResponse<BlobPart, unknown>
-      | (
-          | AxiosResponse<BlobPart, unknown>
-          | AxiosResponse<ILLAApiError, any>
-        )[] = (await fetchActionResult(
-      !isProductionMode ? false : action.config?.public ?? false,
-      ($resourceID as string) || "",
-      actionType as ActionType,
-      displayName,
-      appId,
-      currentActionId,
-      actionContent,
-      abortSignal,
-    )) as AxiosResponse<
-      IActionRunResultResponseData<Record<string, any>[]>,
-      unknown
-    >
-    const isClientS3 =
-      actionType === "s3" &&
-      ClientS3.includes(
-        (actionContent as S3Action<S3ActionTypeContent>).commands,
+    let illaInnerTransformedResponse
+
+    const mockEnabled = isProductionMode
+      ? mockConfig.enabled && mockConfig.enableForReleasedApp
+      : mockConfig.enabled
+
+    if (mockEnabled) {
+      illaInnerTransformedResponse = {
+        data: mockConfig.mockData,
+      }
+    } else {
+      illaInnerTransformedResponse = await fetchActionResult(
+        actionType,
+        isProductionMode,
+        config?.public ?? false,
+        ($resourceID as string) || "",
+        displayName,
+        appId,
+        currentActionId,
+        actionContent,
+        $context,
+        abortSignal,
       )
-    if (isClientS3) {
-      response = await fetchS3ClientResult(response.data.Rows, actionContent)
     }
-    const illaInnerTransformedResponse = transResponse(
-      actionType,
-      response,
-      isClientS3,
-    )
 
     let userTransformedData = runTransformer(
       transformer,
@@ -211,7 +248,21 @@ export const runActionWithExecutionResult = async (
     }
     if (isILLAAPiError(e)) {
       runResult.message = e.data?.errorMessage || "An unknown error"
+      try {
+        if (e.data?.errorMessage.startsWith("run action error: ")) {
+          const arr = e.data?.errorMessage.split("run action error: ")
+          if (arr.length > 1) {
+            const error = JSON.parse(arr[1])
+            const errResponse = {
+              ...e,
+              data: error,
+            }
+            runActionErrorForColla(actionType, actionContent, errResponse)
+          }
+        }
+      } catch (e) {}
     }
+
     store.dispatch(
       executionActions.updateExecutionByDisplayNameReducer({
         displayName: displayName,
@@ -234,7 +285,9 @@ export const runOriginAction = async (action: ActionItem<ActionContent>) => {
   const { displayName } = action
   const finalContext =
     ILLAEditorRuntimePropsCollectorInstance.getGlobalCalcContext()
-  const realAction = finalContext[displayName] as IExecutionActions
+  const realAction = (finalContext as Record<string, unknown>)[
+    displayName
+  ] as IExecutionActions
   return await runActionWithExecutionResult(realAction)
 }
 
@@ -250,21 +303,24 @@ export const runActionWithDelay = (
   const { advancedConfig } = config
   const { delayWhenLoaded } = advancedConfig
   return new Promise((resolve, reject) => {
-    const timeoutID = window.setTimeout(async () => {
-      window.clearTimeout(timeoutID)
+    const timeoutID = window.setTimeout(
+      async () => {
+        window.clearTimeout(timeoutID)
 
-      try {
-        const result = await runActionWithExecutionResult(
-          action,
-          true,
-          abortSignal,
-        )
-        return resolve(result)
-      } catch (e) {
-        console.log("e", e)
-        return reject(e)
-      }
-    }, delayWhenLoaded as unknown as number)
+        try {
+          const result = await runActionWithExecutionResult(
+            action,
+            true,
+            abortSignal,
+          )
+          return resolve(result)
+        } catch (e) {
+          console.log("e", e)
+          return reject(e)
+        }
+      },
+      delayWhenLoaded as unknown as number,
+    )
   })
 }
 
@@ -282,9 +338,12 @@ export const registerActionPeriod = (action: IExecutionActions) => {
     return
   }
   removeActionPeriod(action.$actionID)
-  const timeID = window.setInterval(() => {
-    runActionWithExecutionResult(action)
-  }, (config.advancedConfig.periodInterval as unknown as number) * 1000)
+  const timeID = window.setInterval(
+    () => {
+      runActionWithExecutionResult(action)
+    },
+    (config.advancedConfig.periodInterval as unknown as number) * 1000,
+  )
   actionIDMapTimerID[action.$actionID] = timeID
 }
 

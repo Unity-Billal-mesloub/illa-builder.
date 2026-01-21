@@ -1,17 +1,12 @@
+import { RedisAction } from "@illa-public/public-types"
 import { FC, useCallback, useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { CODE_LANG } from "@/components/CodeEditor/CodeMirror/extensions/interface"
-import { ActionEventHandler } from "@/page/App/components/Actions/ActionPanel/ActionEventHandler"
-import {
-  actionItemContainer,
-  redisContainerStyle,
-} from "@/page/App/components/Actions/ActionPanel/RedisPanel/style"
-import { ResourceChoose } from "@/page/App/components/Actions/ActionPanel/ResourceChoose"
+import { actionItemContainer } from "@/page/App/components/Actions/ActionPanel/RedisPanel/style"
 import { TransformerComponent } from "@/page/App/components/Actions/ActionPanel/TransformerComponent"
-import { InputEditor } from "@/page/App/components/InputEditor"
+import { InputEditor } from "@/page/App/components/Actions/InputEditor"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { RedisAction } from "@/redux/currentApp/action/redisAction"
 import { fetchResourceMeta } from "@/services/resource"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
 
@@ -45,25 +40,20 @@ const RedisPanel: FC = () => {
   )
 
   return (
-    <div css={redisContainerStyle}>
-      <ResourceChoose />
-      <div css={actionItemContainer}>
-        <InputEditor
-          style={{ maxHeight: "88px" }}
-          placeholder="SET runoobkey redis"
-          lineNumbers
-          canShowCompleteInfo
-          value={currentContent.query}
-          mode={CODE_LANG.JAVASCRIPT}
-          expectedType={VALIDATION_TYPES.STRING}
-          sqlScheme={sqlTable}
-          onChange={handleValueChange}
-        />
+    <div css={actionItemContainer}>
+      <InputEditor
+        style={{ maxHeight: "88px" }}
+        placeholder="SET runoobkey redis"
+        lineNumbers
+        canShowCompleteInfo
+        value={currentContent.query}
+        mode={CODE_LANG.JAVASCRIPT}
+        expectedType={VALIDATION_TYPES.STRING}
+        sqlScheme={sqlTable}
+        onChange={handleValueChange}
+      />
 
-        <TransformerComponent fullWidth />
-      </div>
-
-      <ActionEventHandler />
+      <TransformerComponent fullWidth />
     </div>
   )
 }

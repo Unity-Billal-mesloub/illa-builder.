@@ -1,13 +1,11 @@
-import { get, toPath } from "lodash"
+import { convertPathToString } from "@illa-public/dynamic-string"
+import { get, toPath } from "lodash-es"
 import { FC, useMemo } from "react"
 import { useSelector } from "react-redux"
 import {
-  getCanvas,
-  searchDsl,
+  getComponentMap,
+  searchComponentFromMap,
 } from "@/redux/currentApp/components/componentsSelector"
-import { PageNode } from "@/redux/currentApp/components/componentsState"
-import { RootState } from "@/store"
-import { convertPathToString } from "@/utils/executionTreeHelper/utils"
 import { BaseSelectSetterProps } from "./interface"
 import SearchSelectSetter from "./searchSelect"
 
@@ -23,18 +21,16 @@ const EventTargetViewSelect: FC<BaseSelectSetterProps> = (props) => {
       : get(panelConfig, convertPathToString(parentAttrNameArray))
 
   const pagePath = get(parentAttr, "pagePath")
-  const pageComponent = useSelector<RootState>((state) => {
-    const canvas = getCanvas(state)
-    if (!canvas) return null
-    return searchDsl(canvas, pagePath) || null
-  }) as PageNode | null
+  const componentsMap = useSelector(getComponentMap)
+  const pageComponent = searchComponentFromMap(componentsMap, pagePath)
 
   const finalOptions = useMemo(() => {
     if (!pageComponent) return []
     const options: { label: string; value: string }[] = []
     const walkedConfig = new Map<string, Record<string, any>>()
     pageComponent.childrenNode.forEach((node) => {
-      const { props } = node
+      const component = searchComponentFromMap(componentsMap, node)
+      const { props } = component ?? {}
       if (
         props &&
         Array.isArray(props.viewSortedKey) &&
@@ -51,7 +47,7 @@ const EventTargetViewSelect: FC<BaseSelectSetterProps> = (props) => {
       }
     })
     return options
-  }, [pageComponent])
+  }, [componentsMap, pageComponent])
 
   const finalValue = useMemo(() => {
     const index = finalOptions.findIndex((option) => {

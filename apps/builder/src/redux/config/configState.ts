@@ -1,11 +1,9 @@
+import { ActionContent } from "@illa-public/public-types"
+import { ActionItem } from "@illa-public/public-types"
 import {
   ILLA_WEBSOCKET_CONTEXT,
   ILLA_WEBSOCKET_STATUS,
 } from "@/api/ws/interface"
-import {
-  ActionContent,
-  ActionItem,
-} from "@/redux/currentApp/action/actionState"
 
 export type IllaMode = "preview" | "edit" | "production" | "template-edit"
 
@@ -20,12 +18,15 @@ export interface ConfigState {
   selectedAction: ActionItem<ActionContent> | null
   cachedAction: ActionItem<ActionContent> | null
   expandedKeys: string[]
+  expandedWidgets: Record<string, boolean>
   mode: IllaMode
   canvasHeight: number
   canvasWidth: number
   isOnline: boolean
   wsStatus: Record<ILLA_WEBSOCKET_CONTEXT, ILLA_WEBSOCKET_STATUS>
   hoveredComponents: string[]
+  draggingComponentIDs: string[]
+  resizingComponentIDs: string[]
 }
 
 export const ConfigInitialState: ConfigState = {
@@ -44,10 +45,13 @@ export const ConfigInitialState: ConfigState = {
   canvasWidth: 1920,
   isOnline: true,
   hoveredComponents: [],
+  expandedWidgets: {},
   wsStatus: {
     [ILLA_WEBSOCKET_CONTEXT.DASHBOARD]: ILLA_WEBSOCKET_STATUS.INIT,
     [ILLA_WEBSOCKET_CONTEXT.APP]: ILLA_WEBSOCKET_STATUS.INIT,
     [ILLA_WEBSOCKET_CONTEXT.APP_BINARY]: ILLA_WEBSOCKET_STATUS.INIT,
     [ILLA_WEBSOCKET_CONTEXT.AI_AGENT]: ILLA_WEBSOCKET_STATUS.INIT,
   },
+  draggingComponentIDs: [],
+  resizingComponentIDs: [],
 }

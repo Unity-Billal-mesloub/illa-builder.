@@ -1,4 +1,5 @@
-import { AI_AGENT_TYPE } from "@illa-public/market-agent"
+import { isPremiumModel } from "@illa-public/market-agent"
+import { AI_AGENT_TYPE } from "@illa-public/public-types"
 import {
   CollarModalType,
   handleCollaPurchaseError,
@@ -27,6 +28,7 @@ import {
   getAIAgentAnonymousAddress,
   getAIAgentWsAddress,
 } from "@/services/agent"
+import { formatMessageString } from "./utils"
 
 export type AgentMessageType = "chat" | "stop_all" | "clean"
 
@@ -69,7 +71,14 @@ export function useAgentConnect(useAgentProps: UseAgentProps) {
       const encodePayload: ChatSendRequestPayload = payload
       Object.keys(encodePayload).forEach((key) => {
         if (key === "prompt") {
-          encodePayload[key] = encodeURIComponent(encodePayload[key])
+          const text = encodePayload[key]
+          if (isPremiumModel(payload.model)) {
+            encodePayload[key] = encodeURIComponent(
+              formatMessageString(text, messageContent?.knowledgeFiles),
+            )
+          } else {
+            encodePayload[key] = encodeURIComponent(encodePayload[key])
+          }
         }
         if (key === "variables") {
           encodePayload[key] = encodePayload[key].map((v) => {
@@ -228,6 +237,7 @@ export function useAgentConnect(useAgentProps: UseAgentProps) {
                   case 18:
                     collaModal({
                       modalType: CollarModalType.TOKEN,
+                      from: "agent_run",
                     })
                     break
                   case 3:
@@ -247,7 +257,11 @@ export function useAgentConnect(useAgentProps: UseAgentProps) {
         onStartRunning()
       } catch (e) {
         onConnecting(false)
-        const res = handleCollaPurchaseError(e, CollarModalType.TOKEN)
+        const res = handleCollaPurchaseError(
+          e,
+          CollarModalType.TOKEN,
+          "agent_run",
+        )
         if (res) return
         message.error({
           content: t("editor.ai-agent.message.start-failed"),

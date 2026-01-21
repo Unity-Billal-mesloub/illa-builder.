@@ -1,17 +1,15 @@
-import { Agent } from "@illa-public/market-agent"
+import { Agent } from "@illa-public/public-types"
 
 export const agentData2JSONReport = (agent: Agent) => {
   try {
     const {
       agentType,
-      modelConfig: { temperature, maxTokens },
+      modelConfig: {},
       model,
     } = agent
 
     return JSON.stringify({
       mode: agentType,
-      temperature,
-      max_token: maxTokens,
       model,
     })
   } catch (e) {

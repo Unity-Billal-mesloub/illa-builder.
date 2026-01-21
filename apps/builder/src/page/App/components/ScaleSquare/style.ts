@@ -5,7 +5,7 @@ import { ScaleSquareType } from "@/page/App/components/ScaleSquare/interface"
 export type BarPosition = "l" | "r" | "t" | "b" | "tl" | "tr" | "bl" | "br"
 
 export function getSelectedColor(selected: boolean): string {
-  return selected ? globalColor(`--${illaPrefix}-techPurple-01`) : "transparent"
+  return selected ? globalColor(`--${illaPrefix}-techPurple-03`) : "transparent"
 }
 
 export function applySquarePointerStyle(
@@ -145,20 +145,20 @@ export function applyBarPointerStyle(
 
   const baseColor =
     isLimitedMode && selected
-      ? getColor("techPink", "01")
+      ? getColor("techPink", "03")
       : getSelectedColor(selected)
   return css`
     ${barPositionStyle};
     border: 1px solid ${baseColor};
     :hover {
       background-color: ${isLimitedMode
-        ? getColor("techPink", "01")
-        : getColor("techPurple", "01")};
+        ? getColor("techPink", "03")
+        : getColor("techPurple", "03")};
     }
     :active {
       background-color: ${isLimitedMode
-        ? getColor("techPink", "01")
-        : getColor("techPurple", "01")};
+        ? getColor("techPink", "03")
+        : getColor("techPurple", "03")};
     }
   `
 }
@@ -222,16 +222,13 @@ export function applyBarHandlerStyle(
 }
 
 const getWrapperBorderColor = (
-  isLikProductionMode: boolean,
   isSelected: boolean,
   hasEditors: boolean,
   isHover: boolean,
+  shownDot: boolean,
 ) => {
-  if (isLikProductionMode) {
-    return "transparent"
-  }
-  if (isSelected || hasEditors || isHover) {
-    return getColor("techPurple", "01")
+  if (isSelected || hasEditors || isHover || shownDot) {
+    return getColor("techPurple", "03")
   }
   return "transparent"
 }
@@ -241,19 +238,21 @@ const getWrapperBorderStyle = (
   isSelected: boolean,
   isDragging: boolean,
   isHover: boolean,
+  shownDot: boolean,
 ) => {
-  if (hasEditors && !isSelected && !isDragging && !isHover) {
+  if (shownDot || (hasEditors && !isSelected && !isDragging && !isHover)) {
     return "dashed"
   }
   return "solid"
 }
 
-const getWrapperBorder = (
+export const getWrapperBorder = (
   isLikProductionMode: boolean,
   isSelected: boolean,
   hasEditors: boolean,
   isHover: boolean,
   isDragging: boolean,
+  shownDot: boolean,
 ) => {
   if (isLikProductionMode) {
     return css`
@@ -267,43 +266,22 @@ const getWrapperBorder = (
       isSelected,
       isDragging,
       isHover,
+      shownDot,
     )};
     border-color: ${getWrapperBorderColor(
-      isLikProductionMode,
       isSelected,
       hasEditors,
       isHover,
+      shownDot,
     )};
   `
 }
 
-export const applyWrapperPendingStyle = (
-  hasEditors: boolean,
-  isSelected: boolean,
-  hasError: boolean,
-  isDragging: boolean,
-  isEditor: boolean,
-  isLimitedModeAndOverLap: boolean = false,
-  isLikProductionMode: boolean,
-  isHover: boolean,
-) => css`
+export const jsonWrapperPendingStyle = css`
   width: 100%;
   height: 100%;
   padding: 2px;
-  ${getWrapperBorder(
-    isLikProductionMode,
-    isSelected,
-    hasEditors,
-    isHover,
-    isDragging,
-  )};
-  background-color: ${isEditor && hasError && !isSelected
-    ? globalColor(`--${illaPrefix}-red-07`)
-    : "transparent"};
-  ${isLimitedModeAndOverLap && isSelected
-    ? `border-bottom:unset !important`
-    : ""}
-  ${isEditor && "cursor: move"}
+  background-color: transparent;
 `
 
 export const applyDashedLineStyle = (
@@ -320,7 +298,7 @@ export const applyDashedLineStyle = (
   max-height: ${maxHeight ? `${maxHeight}px` : "unset"};
   pointer-events: none;
   border: ${isShowCanvasDot && !isSelected && !isDragging
-    ? `1px dashed ${globalColor(`--${illaPrefix}-techPurple-01`)}`
+    ? `1px dashed ${globalColor(`--${illaPrefix}-techPurple-03`)}`
     : "none"};
 `
 
@@ -338,10 +316,10 @@ export const applyXDirectionDashedLineStyle = (
   max-height: ${maxHeight ? `${maxHeight}px` : "unset"};
   pointer-events: none;
   border-left: ${isShowCanvasDot && !isSelected && !isDragging
-    ? `1px dashed ${globalColor(`--${illaPrefix}-techPurple-01`)}`
+    ? `1px dashed ${globalColor(`--${illaPrefix}-techPurple-03`)}`
     : "none"};
   border-right: ${isShowCanvasDot && !isSelected && !isDragging
-    ? `1px dashed ${globalColor(`--${illaPrefix}-techPurple-01`)}`
+    ? `1px dashed ${globalColor(`--${illaPrefix}-techPurple-03`)}`
     : "none"};
 `
 

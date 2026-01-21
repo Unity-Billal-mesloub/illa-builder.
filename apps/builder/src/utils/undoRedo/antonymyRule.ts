@@ -1,11 +1,12 @@
+import { ComponentTreeNode } from "@illa-public/public-types"
 import { AnyAction } from "@reduxjs/toolkit"
 import { createMessage } from "@illa-design/react"
 import i18n from "@/i18n/config"
 import { REDUX_ACTION_FROM } from "@/middleware/undoRedo/interface"
 import { configActions } from "@/redux/config/configSlice"
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
 import store from "@/store"
 import { changeDisplayNameHelperWhenUndoRedo } from "../componentNode/changeDisplayNameHelper"
+import { DisplayNameGenerator } from "../generators/generateDisplayName"
 import {
   addActionItemWhenUndoRedo,
   removeActionItemWhenUndoRedo,
@@ -95,7 +96,8 @@ export const reduxActionDependOnRestAPI = async (
       case "components/addComponentReducer": {
         const originNode = action.payload
         const newOriginNodeByChangeDisplayName = originNode.map(
-          (item: ComponentNode) => changeDisplayNameHelperWhenUndoRedo(item),
+          (item: ComponentTreeNode) =>
+            changeDisplayNameHelperWhenUndoRedo(item),
         )
 
         store.dispatch({
@@ -126,7 +128,7 @@ export const reduxActionDependOnRestAPI = async (
       case "components/addSectionViewReducer": {
         if (Array.isArray(action.payload.originChildrenNode)) {
           const newOriginNodeByChangeDisplayName =
-            action.payload.originChildrenNode.map((item: ComponentNode) =>
+            action.payload.originChildrenNode.map((item: ComponentTreeNode) =>
               changeDisplayNameHelperWhenUndoRedo(item),
             )
           store.dispatch({
@@ -168,6 +170,23 @@ export const reduxActionDependOnRestAPI = async (
         })
         break
       }
+      case "components/setGlobalStateReducer": {
+        if (action.payload.key) {
+          const newName = DisplayNameGenerator.updateOrGenerateDisplayName(
+            action.payload.key,
+          )
+          store.dispatch({
+            ...action,
+            from,
+            payload: {
+              ...action.payload,
+              key: newName,
+            },
+          })
+        }
+        break
+      }
+
       default: {
         store.dispatch({
           ...action,

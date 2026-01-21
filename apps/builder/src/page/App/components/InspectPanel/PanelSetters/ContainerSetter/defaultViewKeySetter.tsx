@@ -1,4 +1,4 @@
-import { get } from "lodash"
+import { get } from "lodash-es"
 import { FC, useCallback, useMemo } from "react"
 import { useSelector } from "react-redux"
 import { ViewItemShape } from "@/page/App/components/InspectPanel/PanelSetters/ContainerSetter/ViewsSetter/interface"
@@ -45,10 +45,12 @@ const ContainerDefaultViewKeySetter: FC<ContainerDefaultViewKeySetterProps> = (
         currentIndex,
         currentKey,
       })
-      if (linkWidgetDisplayName) {
-        handleUpdateOtherMultiAttrDSL?.(linkWidgetDisplayName, {
-          currentIndex,
-          currentKey,
+      if (linkWidgetDisplayName && Array.isArray(linkWidgetDisplayName)) {
+        linkWidgetDisplayName.forEach((name) => {
+          handleUpdateOtherMultiAttrDSL?.(name, {
+            currentIndex,
+            currentKey,
+          })
         })
       }
     },

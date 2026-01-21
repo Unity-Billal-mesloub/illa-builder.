@@ -1,4 +1,6 @@
-import { cloneDeep, get, isFunction, isNumber, set, toPath } from "lodash"
+import { convertPathToString } from "@illa-public/dynamic-string"
+import { klona } from "klona"
+import { get, isFunction, isNumber, set, toPath } from "lodash-es"
 import { FC, Suspense, memo, useCallback, useMemo } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { Skeleton } from "@illa-design/react"
@@ -10,15 +12,12 @@ import {
 } from "@/page/App/components/ScaleSquare/constant/widget"
 import { LayoutInfo } from "@/redux/currentApp/components/componentsPayload"
 import {
-  getCanvas,
   getContainerListDisplayNameMappedChildrenNodeDisplayName,
-  searchDsl,
+  searchDSLByDisplayName,
 } from "@/redux/currentApp/components/componentsSelector"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
 import {
   getExecutionResult,
-  getExecutionWidgetLayoutInfo,
   getIsDragging,
 } from "@/redux/currentApp/executionTree/executionSelector"
 import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
@@ -27,11 +26,12 @@ import store from "@/store"
 import { evaluateDynamicString } from "@/utils/evaluateDynamicString"
 import { runEventHandler } from "@/utils/eventHandlerHelper"
 import { ILLAEditorRuntimePropsCollectorInstance } from "@/utils/executionTreeHelper/runtimePropsCollector"
-import { convertPathToString } from "@/utils/executionTreeHelper/utils"
 import { isObject } from "@/utils/typeHelper"
 import { TransformWidgetProps } from "@/widgetLibrary/PublicSector/TransformWidgetWrapper/interface"
 import { applyWrapperStylesStyle } from "@/widgetLibrary/PublicSector/TransformWidgetWrapper/style"
 import { widgetBuilder } from "@/widgetLibrary/widgetBuilder"
+import { getClientWidgetLayoutInfo } from "../../../redux/currentApp/layoutInfo/layoutInfoSelector"
+import { layoutInfoActions } from "../../../redux/currentApp/layoutInfo/layoutInfoSlice"
 import { MIN_HEIGHT } from "./config"
 
 export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
@@ -41,15 +41,10 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
 
     const displayNameMapProps = useSelector(getExecutionResult)
     const layoutInfo = useSelector<RootState, LayoutInfo>((rootState) => {
-      const layoutInfos = getExecutionWidgetLayoutInfo(rootState)
+      const layoutInfos = getClientWidgetLayoutInfo(rootState)
       return layoutInfos[displayName].layoutInfo
     })
-    const originComponentNode = useSelector<RootState, ComponentNode>(
-      (rootState) => {
-        const rootNode = getCanvas(rootState)
-        return searchDsl(rootNode, displayName) as ComponentNode
-      },
-    )
+    const originComponentNode = searchDSLByDisplayName(displayName)
 
     const realProps = useMemo(
       () => displayNameMapProps[displayName] ?? {},
@@ -116,7 +111,7 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
       (newHeight: number) => {
         if (isDraggingInGlobal) return
         const rootState = store.getState()
-        const widgetLayoutInfos = getExecutionWidgetLayoutInfo(rootState)
+        const widgetLayoutInfos = getClientWidgetLayoutInfo(rootState)
         const oldH = widgetLayoutInfos[displayName]?.layoutInfo.h ?? 0
 
         if (dynamicHeight !== "fixed") {
@@ -144,7 +139,7 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
         }
 
         const newH = Math.max(
-          Math.round(
+          Math.ceil(
             (newHeight +
               (WIDGET_PADDING + WIDGET_SCALE_SQUARE_BORDER_WIDTH) * 2) /
               UNIT_HEIGHT,
@@ -155,7 +150,7 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
         if (newH === oldH) return
 
         dispatch(
-          executionActions.updateWidgetLayoutInfoReducer({
+          layoutInfoActions.updateWidgetLayoutInfoReducer({
             displayName,
             layoutInfo: {
               h: newH,
@@ -241,9 +236,17 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
           "$dynamicAttrPaths",
           [],
         )
-        const needRunEvents = cloneDeep(originEvents).filter((originEvent) => {
-          return originEvent.eventType === eventType
-        })
+
+        const needRunEvents = klona(originEvents)
+          .filter((originEvent) => {
+            return originEvent.eventType === eventType
+          })
+          .map((originEvent) => {
+            return {
+              ...originEvent,
+              originEnable: originEvent.enabled,
+            }
+          })
         const finalContext =
           ILLAEditorRuntimePropsCollectorInstance.getCurrentPageCalcContext(
             otherCalcContext,
@@ -269,13 +272,14 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
           path,
           otherCalcContext,
         )
+
         dynamicPaths?.forEach((path: string) => {
           const realPath = isFunction(formatPath)
             ? formatPath(path)
             : convertPathToString(toPath(path).slice(1))
-          try {
-            const dynamicString = get(needRunEvents, realPath, "")
-            if (dynamicString) {
+          const dynamicString = get(needRunEvents, realPath, "")
+          if (dynamicString) {
+            try {
               const calcValue = evaluateDynamicString(
                 `events${realPath}`,
                 dynamicString,
@@ -290,9 +294,9 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
               } else {
                 set(needRunEvents, realPath, calcValue)
               }
+            } catch {
+              set(needRunEvents, realPath, undefined)
             }
-          } catch (e) {
-            console.log(e)
           }
         })
 
@@ -320,10 +324,10 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
             ? formatPath(path)
             : convertPathToString(toPath(path).slice(2))
 
-          try {
-            const dynamicString = get(needRunEvents, realPath, "")
+          const dynamicString = get(needRunEvents, realPath, "")
 
-            if (dynamicString) {
+          if (dynamicString) {
+            try {
               const calcValue = evaluateDynamicString(
                 `events${realPath}`,
                 dynamicString,
@@ -344,9 +348,9 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
                 }
               }
               set(needRunEvents, realPath, valueToSet)
+            } catch {
+              set(needRunEvents, realPath, undefined)
             }
-          } catch (e) {
-            console.log(e)
           }
         })
         needRunEvents.forEach((scriptObj: any) => {
@@ -385,6 +389,7 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
               shadow,
               widgetType,
             )}
+            id={displayName}
           >
             <Suspense
               fallback={
@@ -405,6 +410,7 @@ export const TransformWidgetWrapper: FC<TransformWidgetProps> = memo(
               <Component
                 {...realProps}
                 h={layoutInfo.h}
+                w={layoutInfo.w}
                 columnNumber={columnNumber}
                 handleUpdateOriginalDSLMultiAttr={
                   handleUpdateOriginalDSLMultiAttr

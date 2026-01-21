@@ -1,13 +1,13 @@
 import { ChartType } from "chart.js"
-import { get } from "lodash"
+import { get } from "lodash-es"
 import { FC, useCallback, useMemo } from "react"
 import { useSelector } from "react-redux"
-import { ReactComponent as BarChartIcon } from "@/assets/chart/bar-chart.svg"
-import { ReactComponent as DoughnutIcon } from "@/assets/chart/doughnut-chart.svg"
-import { ReactComponent as LineChartIcon } from "@/assets/chart/line-chart.svg"
-import { ReactComponent as PieChartIcon } from "@/assets/chart/pie-chart.svg"
-import { ReactComponent as RadarIcon } from "@/assets/chart/radar-chart.svg"
-import { ReactComponent as ScatterPlotIcon } from "@/assets/chart/scatter-plot.svg"
+import BarChartIcon from "@/assets/chart/bar-chart.svg?react"
+import DoughnutIcon from "@/assets/chart/doughnut-chart.svg?react"
+import LineChartIcon from "@/assets/chart/line-chart.svg?react"
+import PieChartIcon from "@/assets/chart/pie-chart.svg?react"
+import RadarIcon from "@/assets/chart/radar-chart.svg?react"
+import ScatterPlotIcon from "@/assets/chart/scatter-plot.svg?react"
 import i18n from "@/i18n/config"
 import { ChartDatasetShape } from "@/page/App/components/InspectPanel/PanelSetters/ChartSetter/chartDatasetsSetter/interface"
 import { CHART_PRESET_COLOR } from "@/page/App/components/InspectPanel/PanelSetters/ChartSetter/chartDatasetsSetter/listItem"
@@ -18,8 +18,8 @@ import {
 } from "@/page/App/components/InspectPanel/PanelSetters/ChartSetter/style"
 import BaseSelectSetter from "@/page/App/components/InspectPanel/PanelSetters/SelectSetter/baseSelect"
 import {
-  getCanvas,
-  searchDsl,
+  getComponentMap,
+  searchComponentFromMap,
 } from "@/redux/currentApp/components/componentsSelector"
 import { RootState } from "@/store"
 import { ChartTypeSelectSetterProps } from "./interface"
@@ -98,8 +98,8 @@ const ChartTypeSelectSetter: FC<ChartTypeSelectSetterProps> = (props) => {
 
   const insertValues = useSelector<RootState, Record<string, any>>(
     (rootState) => {
-      const targetComponentNode = searchDsl(
-        getCanvas(rootState),
+      const targetComponentNode = searchComponentFromMap(
+        getComponentMap(rootState),
         widgetDisplayName,
       )
       if (!targetComponentNode) return {}

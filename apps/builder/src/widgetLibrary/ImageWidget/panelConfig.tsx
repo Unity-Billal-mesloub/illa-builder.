@@ -1,9 +1,16 @@
-import { ReactComponent as RadioIcon } from "@/assets/radius-icon.svg"
+import { isCloudVersion } from "@illa-public/utils"
+import {
+  HorizontalCenterIcon,
+  HorizontalEndIcon,
+  HorizontalStartIcon,
+} from "@illa-design/react"
+import RadioIcon from "@/assets/radius-icon.svg?react"
 import i18n from "@/i18n/config"
 import { PanelConfig } from "@/page/App/components/InspectPanel/interface"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
 import { IMAGE_EVENT_HANDLER_CONFIG } from "@/widgetLibrary/ImageWidget/eventHandlerConfig"
 import { generatorEventHandlerConfig } from "@/widgetLibrary/PublicSector/utils/generatorEventHandlerConfig"
+import { ObjectFit } from "./interface"
 
 const baseWidgetName = "input"
 export const IMAGE_PANEL_CONFIG: PanelConfig[] = [
@@ -12,12 +19,24 @@ export const IMAGE_PANEL_CONFIG: PanelConfig[] = [
     groupName: i18n.t("editor.inspect.setter_group.basic"),
     children: [
       {
-        id: `${baseWidgetName}-basic-source`,
+        id: `${baseWidgetName}-basic-source-self-host`,
         attrName: "imageSrc",
         expectedType: VALIDATION_TYPES.STRING,
         labelName: i18n.t("editor.inspect.setter_label.image_source"),
         isSetterSingleRow: true,
+        bindAttrName: [],
+        shown: () => !isCloudVersion,
         setterType: "INPUT_SETTER",
+      },
+      {
+        id: `${baseWidgetName}-basic-source-cloud-version`,
+        attrName: "imageSrc",
+        expectedType: VALIDATION_TYPES.STRING,
+        labelName: i18n.t("editor.inspect.setter_label.image_source"),
+        isSetterSingleRow: true,
+        bindAttrName: [],
+        shown: () => isCloudVersion,
+        setterType: "DRIVE_SOURCE_GROUP_SETTER",
       },
       {
         id: `${baseWidgetName}-basic-alt-text`,
@@ -26,13 +45,6 @@ export const IMAGE_PANEL_CONFIG: PanelConfig[] = [
         expectedType: VALIDATION_TYPES.STRING,
         attrName: "altText",
         setterType: "INPUT_SETTER",
-      },
-      {
-        id: `${baseWidgetName}-basic-scale-type`,
-        labelName: i18n.t("editor.inspect.setter_label.scale_type"),
-        attrName: "objectFit",
-        setterType: "SEARCH_SELECT_SETTER",
-        options: ["container", "cover", "fill", "none", "scale-down"],
       },
     ],
   },
@@ -76,6 +88,64 @@ export const IMAGE_PANEL_CONFIG: PanelConfig[] = [
         useCustomLayout: true,
         openDynamic: true,
       },
+      {
+        id: `${baseWidgetName}-layout-height`,
+        labelName: i18n.t("editor.inspect.setter_label.height"),
+        attrName: "dynamicHeight",
+        setterType: "HEIGHT_MODE_SELECT",
+        options: [
+          {
+            label: i18n.t("editor.inspect.setter_option.fixed"),
+            value: "fixed",
+          },
+          {
+            label: i18n.t("editor.inspect.setter_option.auto_height"),
+            value: "auto",
+          },
+        ],
+      },
+      {
+        id: `${baseWidgetName}-basic-aspect-ratio`,
+        labelName: i18n.t("aspect-ratio"),
+        attrName: "aspectRatio",
+        bindAttrName: ["dynamicHeight"],
+        shown: (dynamicHeight: "fixed" | "auto") => dynamicHeight === "auto",
+        setterType: "INPUT_SETTER",
+        expectedType: VALIDATION_TYPES.NUMBER,
+      },
+      {
+        id: `${baseWidgetName}-basic-scale-type`,
+        labelName: i18n.t("editor.inspect.setter_label.scale_type"),
+        attrName: "objectFit",
+        bindAttrName: ["dynamicHeight"],
+        shown: (dynamicHeight: "fixed" | "auto") => dynamicHeight === "fixed",
+        setterType: "SEARCH_SELECT_SETTER",
+        options: ["cover", "contain"],
+      },
+      {
+        id: `${baseWidgetName}-layout-col`,
+        labelName: i18n.t("editor.inspect.setter_label.horizontal_alignment"),
+        attrName: "horizontalAlign",
+        bindAttrName: ["dynamicHeight", "objectFit"],
+        shown: (dynamicHeight: "fixed" | "auto", objectFit: ObjectFit) =>
+          dynamicHeight === "fixed" && objectFit !== "cover",
+        setterType: "RADIO_GROUP_SETTER",
+        isSetterSingleRow: true,
+        options: [
+          {
+            label: <HorizontalStartIcon />,
+            value: "start",
+          },
+          {
+            label: <HorizontalCenterIcon />,
+            value: "center",
+          },
+          {
+            label: <HorizontalEndIcon />,
+            value: "end",
+          },
+        ],
+      },
     ],
   },
   {
@@ -95,7 +165,7 @@ export const IMAGE_PANEL_CONFIG: PanelConfig[] = [
             labelName: i18n.t("editor.inspect.setter_label.radius"),
             setterType: "MEASURE_CHECK_INPUT_SETTER",
             useCustomLayout: true,
-            attrName: "radius",
+            attrName: "imageRadius",
             icon: <RadioIcon />,
             defaultValue: "0px",
             expectedType: VALIDATION_TYPES.STRING,

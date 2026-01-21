@@ -1,3 +1,4 @@
+import { isILLAAPiError } from "@illa-public/illa-net"
 import { ERROR_FLAG } from "@illa-public/illa-net/errorFlag"
 import {
   CollarModalType,
@@ -7,16 +8,16 @@ import { Zip, ZipPassThrough } from "fflate"
 import { createWriteStream } from "streamsaver"
 import { createMessage } from "@illa-design/react"
 import i18n from "@/i18n/config"
-import { UPLOAD_FILE_STATUS, fetchDownloadURLByTinyURL } from "@/services/drive"
-import {
-  getUploadToDriveSingedURL,
-  updateFilesToDrive,
-  updateFilesToDriveStatus,
-} from "@/utils/drive/upload/getSingedURL"
+import { FILE_ITEM_DETAIL_STATUS_IN_UI } from "@/page/App/Module/UploadDetail/components/DetailList/interface"
+import { updateFileDetailStore } from "@/page/App/Module/UploadDetail/store"
+import { getIsILLAProductMode } from "@/redux/config/configSelector"
+import { fetchDownloadURLByTinyURL } from "@/services/drive"
+import store from "@/store"
+import { uploadFileToDrive } from "@/utils/drive/upload/getSingedURL"
 import { getContentTypeByFileExtension, getFileName } from "@/utils/file"
-import { isILLAAPiError } from "@/utils/typeHelper"
 import { isBase64Simple } from "@/utils/url/base64"
 import { dataURLtoFile } from "@/widgetLibrary/UploadWidget/util"
+import { isNeedPreventForPremium } from "./premiumEventUtils"
 
 const message = createMessage()
 
@@ -34,7 +35,7 @@ export const downloadFromILLADrive = async (
   params: IDownloadFromILLADriveParams,
 ) => {
   const { downloadInfo, asZip = false } = params
-  if (!Array.isArray(downloadInfo)) {
+  if (isNeedPreventForPremium() || !Array.isArray(downloadInfo)) {
     return
   }
   let promise = Promise.resolve()
@@ -89,7 +90,15 @@ export const downloadFromILLADrive = async (
           }
         }
       } catch (e) {
-        const res = handleCollaPurchaseError(e, CollarModalType.TRAFFIC)
+        const rootState = store.getState()
+        const isProductionMode = getIsILLAProductMode(rootState)
+        const res = handleCollaPurchaseError(
+          e,
+          CollarModalType.STORAGE,
+          isProductionMode
+            ? "deploy_traffic_not_enough_event_handler"
+            : "builder_editor_traffic_not_enough_event_handler",
+        )
         if (res) return
         if (isILLAAPiError(e)) {
           if (
@@ -125,30 +134,36 @@ export enum FILE_TYPE {
   XLSX = "xlsx",
 }
 
-interface ISaveToILLADriveParams {
+export interface ISaveToILLADriveParams {
   fileName: string
   fileData: string
   fileType: FILE_TYPE
   folder?: string
   allowAnonymous?: boolean
   replace?: boolean
+  queryID?: string
 }
 
 export const saveToILLADrive = async (params: ISaveToILLADriveParams) => {
   const {
     fileName,
     fileData,
-    fileType = "auto",
+    fileType = FILE_TYPE.AUTO,
     folder = "",
     allowAnonymous = false,
     replace = false,
   } = params
   if (
+    isNeedPreventForPremium() ||
     typeof fileName !== "string" ||
     fileData == undefined ||
     typeof fileData !== "string"
   )
     return
+
+  message.info({
+    content: i18n.t("drive.message.start_upload"),
+  })
   const isBase64 = isBase64Simple(fileData)
 
   const fileDownloadName = getFileName((fileName ?? "").trim(), fileType)
@@ -160,50 +175,60 @@ export const saveToILLADrive = async (params: ISaveToILLADriveParams) => {
   if (!isBase64) {
     tmpData = `data:${contentType};base64,${fileData}`
   }
+  const queryID = `${fileDownloadName}_${new Date().getTime()}`
 
+  const abortController = new AbortController()
+
+  updateFileDetailStore.addFileDetailInfo({
+    loaded: 0,
+    total: 0,
+    status: FILE_ITEM_DETAIL_STATUS_IN_UI.WAITING,
+    fileName: fileDownloadName,
+    contentType,
+    queryID: queryID,
+    abortController,
+  })
+  let needUploadFile: File | undefined
   try {
-    const needUploadFile = dataURLtoFile(tmpData, fileDownloadName)
-    const uploadURLResponse = await getUploadToDriveSingedURL(
-      allowAnonymous,
-      folder,
-      {
-        fileName: fileDownloadName,
-        size: needUploadFile.size,
-        contentType: needUploadFile.type,
+    needUploadFile = dataURLtoFile(tmpData, fileDownloadName)
+    updateFileDetailStore.updateFileDetailInfo(queryID, {
+      saveToILLADriveParams: {
+        fileData: needUploadFile,
+        allowAnonymous,
+        folder,
         replace,
       },
-    )
-    const uploadResult = await updateFilesToDrive(
-      uploadURLResponse.url,
-      needUploadFile,
-    )
-    if (uploadResult === UPLOAD_FILE_STATUS.COMPLETE) {
-      message.success({
-        content: i18n.t("editor.inspect.setter_message.uploadsuc"),
-      })
-    } else {
-      message.error({
-        content: i18n.t("editor.inspect.setter_message.uploadfail"),
-      })
-    }
-    await updateFilesToDriveStatus(
-      allowAnonymous,
-      uploadURLResponse.fileID,
-      uploadResult,
-    )
+    })
   } catch (e) {
-    const res = handleCollaPurchaseError(e, CollarModalType.STORAGE)
-    if (res) return
-    if (isILLAAPiError(e)) {
-      if (e.data.errorMessage === ERROR_FLAG.ERROR_FLAG_OUT_OF_USAGE_VOLUME) {
-        message.error({
-          content: i18n.t("editor.inspect.setter_message.noStorage"),
-        })
-        return
-      }
-    }
+    updateFileDetailStore.updateFileDetailInfo(queryID, {
+      status: FILE_ITEM_DETAIL_STATUS_IN_UI.ERROR,
+    })
     message.error({
       content: i18n.t("editor.inspect.setter_message.uploadfail"),
     })
+    return
+  }
+
+  try {
+    await uploadFileToDrive(
+      queryID,
+      needUploadFile,
+      {
+        allowAnonymous,
+        folder,
+        replace,
+      },
+      abortController.signal,
+    )
+  } catch (e) {
+    const rootState = store.getState()
+    const isProductionMode = getIsILLAProductMode(rootState)
+    handleCollaPurchaseError(
+      e,
+      CollarModalType.STORAGE,
+      isProductionMode
+        ? "deploy_storage_not_enough_event_handler"
+        : "builder_editor_storage_not_enough_event_handler",
+    )
   }
 }

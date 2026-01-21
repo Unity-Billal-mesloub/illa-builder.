@@ -2,35 +2,14 @@ import {
   actionBasicRequest,
   actionRequest,
   builderRequest,
+  notNeedAuthAxios,
 } from "@illa-public/illa-net"
 import { BUILDER_REQUEST_PREFIX } from "@illa-public/illa-net/constant"
+import { ActionContent, ActionType } from "@illa-public/public-types"
+import { ActionItem } from "@illa-public/public-types"
 import { AxiosRequestConfig, Method } from "axios"
-import {
-  ActionContent,
-  ActionItem,
-  ActionType,
-} from "@/redux/currentApp/action/actionState"
-import { ResourceContent, ResourceType } from "@/redux/resource/resourceState"
 import { getParamsFromIllaRoute } from "@/utils/routerHelper"
 import { getCurrentTeamID, getCurrentTeamIdentifier } from "../utils/team"
-
-interface IActionTestConnectionRequestData {
-  resourceID: string
-  resourceName: string
-  resourceType: ResourceType
-  content: ResourceContent
-}
-
-export const fetchActionTestConnection = (
-  data: IActionTestConnectionRequestData,
-) => {
-  return actionRequest<null>(
-    { url: "/resources/testConnection", method: "POST", data },
-    {
-      teamID: getCurrentTeamID(),
-    },
-  )
-}
 
 interface IActionRunResultRequestData {
   resourceID: string
@@ -73,7 +52,7 @@ export const fetchS3ActionRunResult = (
   headers: AxiosRequestConfig["headers"],
   data?: unknown,
 ) => {
-  return actionBasicRequest<BlobPart>({
+  return notNeedAuthAxios({
     baseURL: url,
     method,
     headers,
@@ -133,6 +112,24 @@ export const fetchUpdateAction = (action: ActionItem<ActionContent>) => {
       method: "PUT",
       url: `/apps/${appId}/actions/${action.actionID}`,
       data: action,
+    },
+    { teamID: getCurrentTeamID() },
+  )
+}
+
+export const fetchBatchUpdateAction = (
+  actions: ActionItem<ActionContent>[],
+) => {
+  const appId = getParamsFromIllaRoute("appId") as string
+  return builderRequest<{
+    actions: ActionItem<ActionContent>[]
+  }>(
+    {
+      method: "PUT",
+      url: `/apps/${appId}/actions/byBatch`,
+      data: {
+        actions: actions,
+      },
     },
     { teamID: getCurrentTeamID() },
   )

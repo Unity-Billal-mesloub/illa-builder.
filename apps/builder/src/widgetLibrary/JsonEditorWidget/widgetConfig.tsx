@@ -1,4 +1,4 @@
-import { ReactComponent as JsonEditorWidgetIcon } from "@/assets/widgetCover/jsonEditor.svg"
+import JsonEditorWidgetIcon from "@/assets/widgetCover/jsonEditor.svg?react"
 import i18n from "@/i18n/config"
 import { WidgetConfig } from "@/widgetLibrary/interface"
 
@@ -15,7 +15,15 @@ export const JSON_EDITOR_WIDGET_CONFIG: WidgetConfig = {
   defaults: {
     colorScheme: "grayBlue",
     hidden: false,
-    value: `[{ "language": "en-US", "userConfig": { "0-16": "planA", "17-24": "planB", "25+": "planC" }, "language": "ja-JP", "userConfig": { "0-16": "planD", "17-24": "planE", "25+": "planF" }}]`,
+    value: undefined,
+    defaultValue: `[{
+  language: "en-US",
+  userConfig: { "0-16": "planA", "17-24": "planB", "25+": "planC" },
+},
+{
+  language: "ja-JP",
+  userConfig: { "0-16": "planD", "17-24": "planE", "25+": "planF" },
+}]`,
     radius: "4px",
     shadow: "small",
   },

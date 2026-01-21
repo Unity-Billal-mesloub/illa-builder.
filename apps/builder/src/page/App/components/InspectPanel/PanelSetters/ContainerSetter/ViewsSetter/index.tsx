@@ -1,4 +1,5 @@
-import { get } from "lodash"
+import { ComponentMapNode } from "@illa-public/public-types"
+import { get } from "lodash-es"
 import { FC, memo, useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
@@ -15,11 +16,10 @@ import {
 } from "@/page/App/components/InspectPanel/PanelSetters/ContainerSetter/ViewsSetter/style"
 import { generateNewViewItem } from "@/page/App/components/InspectPanel/PanelSetters/ContainerSetter/ViewsSetter/utils/generateNewOptions"
 import {
-  getCanvas,
-  searchDsl,
+  getComponentMap,
+  searchComponentFromMap,
 } from "@/redux/currentApp/components/componentsSelector"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
-import { ComponentNode } from "@/redux/currentApp/components/componentsState"
 import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
 import store, { RootState } from "@/store"
 import { newGenerateChildrenComponentNode } from "@/utils/generators/generateComponentNode"
@@ -31,13 +31,13 @@ const ViewsSetter: FC<ViewSetterProps> = memo((props: ViewSetterProps) => {
     attrName,
     widgetDisplayName,
     childrenSetter,
+    handleUpdateExecutionResult,
     handleUpdateMultiAttrDSL,
     handleUpdateOtherMultiAttrDSL,
     componentNode,
   } = props
   const { t } = useTranslation()
   const executionResult = useSelector(getExecutionResult)
-
   const dispatch = useDispatch()
 
   const targetComponentProps = useSelector<RootState, Record<string, any>>(
@@ -67,13 +67,32 @@ const ViewsSetter: FC<ViewSetterProps> = memo((props: ViewSetterProps) => {
     (updateSlice: Record<string, unknown>) => {
       handleUpdateMultiAttrDSL?.(updateSlice)
       if (linkWidgetDisplayName) {
-        handleUpdateOtherMultiAttrDSL?.(linkWidgetDisplayName, updateSlice)
+        if (Array.isArray(linkWidgetDisplayName)) {
+          linkWidgetDisplayName.forEach((linkDisplayName) => {
+            handleUpdateOtherMultiAttrDSL?.(linkDisplayName, updateSlice)
+          })
+        } else {
+          handleUpdateOtherMultiAttrDSL?.(linkWidgetDisplayName, updateSlice)
+          const linkWidgetLinkedDisplayName = get(
+            executionResult,
+            `${linkWidgetDisplayName}.linkWidgetDisplayName`,
+            [],
+          )
+          linkWidgetLinkedDisplayName &&
+            Array.isArray(linkWidgetLinkedDisplayName) &&
+            linkWidgetLinkedDisplayName.forEach((name) => {
+              name !== widgetDisplayName &&
+                handleUpdateOtherMultiAttrDSL?.(name, updateSlice)
+            })
+        }
       }
     },
     [
+      executionResult,
       handleUpdateMultiAttrDSL,
       handleUpdateOtherMultiAttrDSL,
       linkWidgetDisplayName,
+      widgetDisplayName,
     ],
   )
 
@@ -83,15 +102,38 @@ const ViewsSetter: FC<ViewSetterProps> = memo((props: ViewSetterProps) => {
         [attrName]: value,
       })
       if (linkWidgetDisplayName) {
-        handleUpdateOtherMultiAttrDSL?.(linkWidgetDisplayName, {
-          [attrName]: value,
-        })
+        if (Array.isArray(linkWidgetDisplayName)) {
+          linkWidgetDisplayName.forEach((linkDisplayName) => {
+            handleUpdateOtherMultiAttrDSL?.(linkDisplayName, {
+              [attrName]: value,
+            })
+          })
+        } else {
+          handleUpdateOtherMultiAttrDSL?.(linkWidgetDisplayName, {
+            [attrName]: value,
+          })
+          const linkWidgetLinkedDisplayName = get(
+            executionResult,
+            `${linkWidgetDisplayName}.linkWidgetDisplayName`,
+            [],
+          )
+          linkWidgetLinkedDisplayName &&
+            Array.isArray(linkWidgetLinkedDisplayName) &&
+            linkWidgetLinkedDisplayName.forEach((name) => {
+              name !== widgetDisplayName &&
+                handleUpdateOtherMultiAttrDSL?.(name, {
+                  [attrName]: value,
+                })
+            })
+        }
       }
     },
     [
       handleUpdateMultiAttrDSL,
-      handleUpdateOtherMultiAttrDSL,
       linkWidgetDisplayName,
+      handleUpdateOtherMultiAttrDSL,
+      executionResult,
+      widgetDisplayName,
     ],
   )
 
@@ -99,12 +141,12 @@ const ViewsSetter: FC<ViewSetterProps> = memo((props: ViewSetterProps) => {
     if (componentNode.type === "CONTAINER_WIDGET") {
       return componentNode
     }
-    const finalNode = searchDsl(
-      getCanvas(store.getState()),
+    const finalNode = searchComponentFromMap(
+      getComponentMap(store.getState()),
       linkWidgetDisplayName,
     )
     if (finalNode?.type === "CONTAINER_WIDGET") return finalNode
-    return {} as ComponentNode
+    return {} as ComponentMapNode
   }, [componentNode, linkWidgetDisplayName])
 
   const handleAddViewItem = useCallback(() => {
@@ -117,20 +159,43 @@ const ViewsSetter: FC<ViewSetterProps> = memo((props: ViewSetterProps) => {
       [attrName]: [...value, newItem],
     })
     if (linkWidgetDisplayName) {
-      handleUpdateOtherMultiAttrDSL?.(linkWidgetDisplayName, {
-        [attrName]: [...value, newItem],
-      })
+      if (Array.isArray(linkWidgetDisplayName)) {
+        linkWidgetDisplayName.forEach((linkDisplayName) => {
+          handleUpdateOtherMultiAttrDSL?.(linkDisplayName, {
+            [attrName]: [...value, newItem],
+          })
+        })
+      } else {
+        handleUpdateOtherMultiAttrDSL?.(linkWidgetDisplayName, {
+          [attrName]: [...value, newItem],
+        })
+        const linkWidgetLinkedDisplayName = get(
+          executionResult,
+          `${linkWidgetDisplayName}.linkWidgetDisplayName`,
+          [],
+        )
+        linkWidgetLinkedDisplayName &&
+          Array.isArray(linkWidgetLinkedDisplayName) &&
+          linkWidgetLinkedDisplayName.forEach((name) => {
+            name !== widgetDisplayName &&
+              handleUpdateOtherMultiAttrDSL?.(name, {
+                [attrName]: [...value, newItem],
+              })
+          })
+      }
     }
     dispatch(componentsActions.addComponentReducer([newChildrenNodes]))
   }, [
-    allViewsKeys,
     _componentNode?.displayName,
-    handleUpdateMultiAttrDSL,
+    allViewsKeys,
     attrName,
-    value,
-    linkWidgetDisplayName,
     dispatch,
+    executionResult,
+    handleUpdateMultiAttrDSL,
     handleUpdateOtherMultiAttrDSL,
+    linkWidgetDisplayName,
+    value,
+    widgetDisplayName,
   ])
 
   return (
@@ -141,6 +206,7 @@ const ViewsSetter: FC<ViewSetterProps> = memo((props: ViewSetterProps) => {
       attrPath={attrName}
       handleUpdateDsl={handleUpdateDsl}
       handleUpdateMultiAttrDSL={updateMultiAttrDSL}
+      handleUpdateExecutionResult={handleUpdateExecutionResult}
       handleUpdateOtherMultiAttrDSL={handleUpdateOtherMultiAttrDSL}
       componentNode={_componentNode}
     >

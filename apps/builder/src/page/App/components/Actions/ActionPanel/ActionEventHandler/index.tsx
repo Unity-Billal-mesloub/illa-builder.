@@ -1,4 +1,5 @@
-import { cloneDeep } from "lodash"
+import { ActionContent } from "@illa-public/public-types"
+import { klona } from "klona/json"
 import { FC, Suspense, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
@@ -11,7 +12,6 @@ import RenderPanelSetter from "@/page/App/components/InspectPanel/components/Pan
 import { SelectedProvider } from "@/page/App/components/InspectPanel/context/selectedContext"
 import { getCachedAction } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionContent } from "@/redux/currentApp/action/actionState"
 import { getNewWidgetPropsByUpdateSlice } from "@/utils/componentNode"
 import { isObject } from "@/utils/typeHelper"
 import {
@@ -27,7 +27,7 @@ export const ActionEventHandler: FC = () => {
   const handleUpdateDsl = useCallback(
     (attrPath: string, value: any) => {
       if (action != undefined) {
-        const newActionContent = cloneDeep(action.content || {})
+        const newActionContent = klona(action.content || {})
 
         const updateSlice: Record<string, unknown> = { [attrPath]: value }
 
@@ -49,7 +49,7 @@ export const ActionEventHandler: FC = () => {
   const handleUpdateMultiAttrDSL = useCallback(
     (updateSlice: Record<string, unknown>) => {
       if (!isObject(updateSlice) || action == undefined) return
-      const newActionContent = cloneDeep(action.content || {})
+      const newActionContent = klona(action.content || {})
       const result = getNewWidgetPropsByUpdateSlice(
         updateSlice,
         newActionContent as unknown as Record<string, unknown>,

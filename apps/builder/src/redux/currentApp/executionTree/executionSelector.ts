@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@illa-public/user-data"
 import { createSelector } from "@reduxjs/toolkit"
-import { cloneDeep, get } from "lodash"
+import { klona } from "klona/json"
+import { get } from "lodash-es"
 import { getBuilderInfo } from "@/redux/builderInfo/builderInfoSelector"
 import { getActionList } from "@/redux/currentApp/action/actionSelector"
 import {
@@ -9,7 +10,13 @@ import {
   getPageNameMapDescendantNodeDisplayNames,
 } from "@/redux/currentApp/components/componentsSelector"
 import { RootState } from "@/store"
+import { NeedBuildNode, buildForest } from "@/utils/componentNode/buildTree"
 import { RawTreeFactory } from "@/utils/executionTreeHelper/rawTreeFactory"
+import { recursiveDelete } from "@/utils/executionTreeHelper/rrecursiveDelete"
+import { getEditorConfig } from "../../config/configSelector"
+import { getClientWidgetLayoutInfo } from "../layoutInfo/layoutInfoSelector"
+import { WidgetLayoutInfo } from "../layoutInfo/layoutInfoState"
+import { getAllDescendantNodeDisplayNamesByExecution } from "../layoutInfo/utils"
 
 export const getRawTree = createSelector(
   [
@@ -30,11 +37,18 @@ export const getRawTree = createSelector(
   },
 )
 
-export const getExecution = (state: RootState) => state.currentApp.execution
+export const getCurrentApp = (state: RootState) => state.currentApp
+
+export const getExecution = createSelector(
+  [getCurrentApp],
+  (currentApp) => currentApp.execution,
+)
 
 export const getExecutionResult = createSelector(
   [getExecution],
-  (execution) => execution.result || {},
+  (execution) => {
+    return execution.result || {}
+  },
 )
 
 export const getExecutionError = createSelector(
@@ -42,16 +56,11 @@ export const getExecutionError = createSelector(
   (execution) => execution.error ?? {},
 )
 
-export const getExecutionDebuggerData = createSelector(
-  [getExecution],
-  (execution) => execution.debuggerData ?? {},
-)
 export const IGNORE_WIDGET_TYPES = new Set<string>([
   "PAGE_NODE",
   "SECTION_NODE",
   "CANVAS",
   "DOT_PANEL",
-  "MODAL_WIDGET",
   "MODAL_SECTION_NODE",
 ])
 
@@ -135,6 +144,13 @@ export const getActionExecutionResult = createSelector(
   },
 )
 
+export const getActionExecutionResultWithOutIgnoreKey = createSelector(
+  [getActionExecutionResult],
+  (actionExecutionResult) => {
+    return recursiveDelete(actionExecutionResult, ["displayName"])
+  },
+)
+
 export const getActionExecutionResultArray = createSelector(
   [getActionExecutionResult],
   (actionExecutionResult) => {
@@ -173,7 +189,7 @@ export const getExecutionResultToGlobalCodeMirror = createSelector(
         !IGNORE_WIDGET_TYPES.has(executionResult[key]?.$widgetType) &&
         executionResult[key] != undefined
       ) {
-        result[key] = cloneDeep(executionResult[key])
+        result[key] = klona(executionResult[key])
       }
     })
     return result
@@ -202,10 +218,10 @@ export const getExecutionResultToCurrentPageCodeMirror = createSelector(
         !IGNORE_WIDGET_TYPES.has(executionResult[key]?.$widgetType) &&
         currentPageWidgets.includes(key)
       ) {
-        result[key] = cloneDeep(executionResult[key])
+        result[key] = klona(executionResult[key])
       }
       if (currentSeed && currentSeed.$type !== "WIDGET") {
-        result[key] = cloneDeep(executionResult[key])
+        result[key] = klona(executionResult[key])
       }
     })
     return result
@@ -273,6 +289,7 @@ export const getGlobalInfoExecutionResult = createSelector(
     getLocalStorageExecutionResult,
     getPageInfosExecutionResult,
     getCurrentPageInfoExecutionResult,
+    getGlobalDataExecutionResult,
   ],
   (
     currentUserInfo,
@@ -281,40 +298,23 @@ export const getGlobalInfoExecutionResult = createSelector(
     localStorage,
     pageInfos,
     currentPageInfo,
+    globalData,
   ) => {
-    const globalInfo: Record<string, any>[] = [
-      {
-        ...currentUserInfo,
-        displayName: "currentUserInfo",
-      },
-      {
-        ...builderInfo,
-        displayName: "builderInfo",
-      },
-      {
-        ...urlParams,
-        displayName: "urlParams",
-      },
-      {
-        ...localStorage,
-        displayName: "localStorage",
-      },
-      {
-        ...pageInfos,
-        displayName: "pageInfos",
-      },
-      {
-        ...currentPageInfo,
-        displayName: "currentPageInfo",
-      },
-    ]
-    return globalInfo
-  },
-)
+    let result: Record<string, unknown> = recursiveDelete({
+      currentUserInfo,
+      builderInfo,
+      urlParams,
+      localStorage,
+      pageInfos,
+      currentPageInfo,
+    })
+    const ignoredGlobalData = recursiveDelete(globalData)
+    if (Object.keys(ignoredGlobalData).length > 0) {
+      result.globalData = ignoredGlobalData
+    }
 
-export const getExecutionWidgetLayoutInfo = createSelector(
-  [getExecution],
-  (execution) => execution.widgetsLayoutInfo,
+    return result
+  },
 )
 
 export const getPageLoadingActions = createSelector(
@@ -396,15 +396,161 @@ export const getCurrentPageModalWidgetExecutionResultArray = createSelector(
   },
 )
 
+const getTargetSectionWidget = (
+  targetSectionName: string,
+  currentPageWidgets: NeedBuildNode[],
+  widgets: Record<string, WidgetLayoutInfo>,
+) => {
+  const targetSection = currentPageWidgets.find((widget) =>
+    widget.displayName.startsWith(targetSectionName),
+  )
+  const targetSectionMapHasNodeDisplayNames: Record<string, string[]> = {}
+  if (targetSection) {
+    switch (targetSectionName) {
+      case "modalSection": {
+        const childrenModalWidgets = targetSection.$childrenNode
+        childrenModalWidgets.forEach((displayName: string) => {
+          const viewWidget = widgets[displayName]
+          if (viewWidget) {
+            const descendantNodeDisplayNames =
+              getAllDescendantNodeDisplayNamesByExecution(viewWidget, widgets)
+            targetSectionMapHasNodeDisplayNames[displayName] =
+              descendantNodeDisplayNames
+          }
+        })
+
+        const result: NeedBuildNode[] = []
+        Object.values(targetSectionMapHasNodeDisplayNames).forEach(
+          (displayNames) => {
+            displayNames.forEach((displayName) => {
+              const widget = currentPageWidgets.find((widget) => {
+                return widget.displayName === displayName
+              })
+              if (widget) {
+                result.push(widget)
+              }
+            })
+          },
+        )
+        return result
+      }
+      default: {
+        const currentViewIndex = targetSection.currentViewIndex as number
+        const viewDisplayNames = targetSection.$childrenNode
+        const currentViewDisplayName = viewDisplayNames[currentViewIndex]
+
+        if (!currentViewDisplayName) return []
+        viewDisplayNames.forEach((displayName: string) => {
+          const viewWidget = widgets[displayName]
+          if (viewWidget) {
+            const descendantNodeDisplayNames =
+              getAllDescendantNodeDisplayNamesByExecution(viewWidget, widgets)
+            targetSectionMapHasNodeDisplayNames[displayName] =
+              descendantNodeDisplayNames
+          }
+        })
+        const currentSectionWidgets =
+          targetSectionMapHasNodeDisplayNames[currentViewDisplayName]
+        if (!currentSectionWidgets) return []
+        return currentPageWidgets.filter((widget) =>
+          currentSectionWidgets.includes(widget.displayName),
+        )
+      }
+    }
+  }
+
+  return []
+}
+
+export const getCurrentPageBodyWidgetTree = createSelector(
+  [getCurrentPageWidgetExecutionResultArray, getClientWidgetLayoutInfo],
+  (currentPageWidgets, widgets) => {
+    return buildForest(
+      getTargetSectionWidget(
+        "bodySection",
+        currentPageWidgets as NeedBuildNode[],
+        widgets,
+      ),
+      widgets,
+    )
+  },
+)
+
+export const getCurrentPageFooterWidgetTree = createSelector(
+  [getCurrentPageWidgetExecutionResultArray, getClientWidgetLayoutInfo],
+  (currentPageWidgets, widgets) => {
+    return buildForest(
+      getTargetSectionWidget(
+        "footerSection",
+        currentPageWidgets as NeedBuildNode[],
+        widgets,
+      ),
+      widgets,
+    )
+  },
+)
+export const getCurrentPageLeftWidgetTree = createSelector(
+  [getCurrentPageWidgetExecutionResultArray, getClientWidgetLayoutInfo],
+  (currentPageWidgets, widgets) => {
+    return buildForest(
+      getTargetSectionWidget(
+        "leftSection",
+        currentPageWidgets as NeedBuildNode[],
+        widgets,
+      ),
+      widgets,
+    )
+  },
+)
+export const getCurrentPageHeaderWidgetTree = createSelector(
+  [getCurrentPageWidgetExecutionResultArray, getClientWidgetLayoutInfo],
+  (currentPageWidgets, widgets) => {
+    return buildForest(
+      getTargetSectionWidget(
+        "headerSection",
+        currentPageWidgets as NeedBuildNode[],
+        widgets,
+      ),
+      widgets,
+    )
+  },
+)
+export const getCurrentPageRightWidgetTree = createSelector(
+  [getCurrentPageWidgetExecutionResultArray, getClientWidgetLayoutInfo],
+  (currentPageWidgets, widgets) => {
+    return buildForest(
+      getTargetSectionWidget(
+        "rightSection",
+        currentPageWidgets as NeedBuildNode[],
+        widgets,
+      ),
+      widgets,
+    )
+  },
+)
+export const getCurrentPageModalWidgetTree = createSelector(
+  [getCurrentPageWidgetExecutionResultArray, getClientWidgetLayoutInfo],
+  (currentPageWidgets, widgets) => {
+    return buildForest(
+      getTargetSectionWidget(
+        "modalSection",
+        currentPageWidgets as NeedBuildNode[],
+        widgets,
+      ),
+      widgets,
+    )
+  },
+)
+
 export const getDraggingComponentIDs = createSelector(
-  [getExecution],
-  (execution) => execution.draggingComponentIDs,
+  [getEditorConfig],
+  (editorConfig) => editorConfig.draggingComponentIDs,
 )
 
 export const getResizingComponentIDs = createSelector(
-  [getExecution],
-  (execution) => {
-    return execution.resizingComponentIDs
+  [getEditorConfig],
+  (editorConfig) => {
+    return editorConfig.resizingComponentIDs
   },
 )
 

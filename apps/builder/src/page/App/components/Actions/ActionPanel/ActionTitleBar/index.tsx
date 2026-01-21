@@ -1,5 +1,18 @@
 import { ILLA_MIXPANEL_EVENT_TYPE } from "@illa-public/mixpanel-utils"
-import { isEqual } from "lodash"
+import {
+  ElasticSearchBodyContentType,
+  ElasticSearchIDEditorType,
+  ElasticSearchQueryContentType,
+  getDocLink,
+} from "@illa-public/public-configs"
+import {
+  ActionContent,
+  ActionItem,
+  ElasticSearchAction,
+  GlobalDataActionContent,
+  SMPTAction,
+} from "@illa-public/public-types"
+import { isEqual } from "lodash-es"
 import {
   FC,
   useCallback,
@@ -10,13 +23,15 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
+import { Link } from "react-router-dom"
 import {
   Button,
-  CaretRightIcon,
+  DocsIcon,
   DropList,
   DropListItem,
   Dropdown,
   MoreIcon,
+  PlayFillIcon,
   SuccessCircleIcon,
   UpIcon,
   WarningCircleIcon,
@@ -34,18 +49,6 @@ import {
   getSelectedAction,
 } from "@/redux/config/configSelector"
 import { actionActions } from "@/redux/currentApp/action/actionSlice"
-import {
-  ActionContent,
-  ActionItem,
-  GlobalDataActionContent,
-} from "@/redux/currentApp/action/actionState"
-import {
-  BodyContentType,
-  ElasticSearchAction,
-  IDEditorType,
-  QueryContentType,
-} from "@/redux/currentApp/action/elasticSearchAction"
-import { SMPTAction } from "@/redux/currentApp/action/smtpAction"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
 import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
 import { fetchUpdateAction } from "@/services/action"
@@ -54,6 +57,8 @@ import { runOriginAction } from "@/utils/action/runAction"
 import { DisplayNameGenerator } from "@/utils/generators/generateDisplayName"
 import { trackInEditor } from "@/utils/mixpanelHelper"
 import { ShortCutContext } from "@/utils/shortcut/shortcutProvider"
+import { SQLModeTipContext } from "../../Context/SqlModeTipContext"
+import { isSafeModeAction } from "../utils/safeModeTip"
 import { ActionTitleBarProps } from "./interface"
 import {
   actionFailBlockStyle,
@@ -96,7 +101,7 @@ const getActionFilteredContent = (cachedAction: ActionItem<ActionContent>) => {
   switch (cachedAction?.actionType) {
     case "elasticsearch":
       let content = cachedAction.content as ElasticSearchAction
-      if (!IDEditorType.includes(content.operation)) {
+      if (!ElasticSearchIDEditorType.includes(content.operation)) {
         const { id: _id = "", ...otherContent } = content
         cachedActionValue = {
           ...cachedAction,
@@ -104,7 +109,7 @@ const getActionFilteredContent = (cachedAction: ActionItem<ActionContent>) => {
         }
         content = otherContent
       }
-      if (!BodyContentType.includes(content.operation)) {
+      if (!ElasticSearchBodyContentType.includes(content.operation)) {
         const { body: _body = "", ...otherContent } = content
         cachedActionValue = {
           ...cachedActionValue,
@@ -112,7 +117,7 @@ const getActionFilteredContent = (cachedAction: ActionItem<ActionContent>) => {
         }
         content = otherContent
       }
-      if (!QueryContentType.includes(content.operation)) {
+      if (!ElasticSearchQueryContentType.includes(content.operation)) {
         const { query: _query = "", ...otherContent } = content
         cachedActionValue = {
           ...cachedActionValue,
@@ -145,10 +150,11 @@ export const ActionTitleBar: FC<ActionTitleBarProps> = (props) => {
   const message = useMessage()
   const [saveLoading, setSaveLoading] = useState(false)
   const shortcut = useContext(ShortCutContext)
+  const { setShowSQLModeTip } = useContext(SQLModeTipContext)
 
   const selectedAction = useSelector(getSelectedAction)! ?? {}
   const cachedAction = useSelector(getCachedAction)!
-
+  const docLink = getDocLink("action", cachedAction.actionType)
   const selectedActionExecutionResult = useSelector<
     RootState,
     Record<string, any>
@@ -246,12 +252,14 @@ export const ActionTitleBar: FC<ActionTitleBarProps> = (props) => {
         try {
           await runOriginAction(cachedActionValue)
         } catch (e) {
+          isSafeModeAction(cachedActionValue.actionType) &&
+            setShowSQLModeTip(cachedActionValue.actionID, true)
         } finally {
           onResultVisibleChange(true)
         }
       }
     },
-    [onResultVisibleChange],
+    [onResultVisibleChange, setShowSQLModeTip],
   )
 
   const updateAndRunCachedAction = useCallback(
@@ -484,6 +492,14 @@ export const ActionTitleBar: FC<ActionTitleBarProps> = (props) => {
         </div>
         <div css={runResultAndRunContainerStyle}>
           {renderResult && (runError ? failBlock : successBlock)}
+          {docLink && (
+            <Link to={docLink} target="_blank">
+              <Button
+                colorScheme="grayBlue"
+                leftIcon={<DocsIcon size="14px" />}
+              />
+            </Link>
+          )}
           <Dropdown
             position="bottom-end"
             trigger="click"
@@ -521,12 +537,11 @@ export const ActionTitleBar: FC<ActionTitleBarProps> = (props) => {
             <Button
               pos="relative"
               className={`${cachedAction.displayName}-run`}
-              ml="8px"
               colorScheme="techPurple"
               variant={isChanged ? "fill" : "light"}
               size="medium"
               loading={isRunning || saveLoading}
-              leftIcon={<CaretRightIcon />}
+              leftIcon={<PlayFillIcon />}
               onClick={handleActionOperation}
             >
               {t(`editor.action.panel.btn.${runMode}`)}

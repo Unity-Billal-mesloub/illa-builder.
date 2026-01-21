@@ -1,29 +1,25 @@
+import {
+  AppwriteDocumentOperationsInitial,
+  AppwriteListDocumentsInitial,
+} from "@illa-public/public-configs"
+import {
+  ActionItem,
+  AppwriteAction,
+  AppwriteActionMethodsType,
+  AppwriteActionTypes,
+} from "@illa-public/public-types"
 import { FC, useCallback, useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
-import { ActionEventHandler } from "@/page/App/components/Actions/ActionPanel/ActionEventHandler"
 import { DocumentSubPanel } from "@/page/App/components/Actions/ActionPanel/AppwritePanel/DocumentSubPanel"
 import { ListDocumentsSubPanel } from "@/page/App/components/Actions/ActionPanel/AppwritePanel/ListDocuments"
-import { ResourceChoose } from "@/page/App/components/Actions/ActionPanel/ResourceChoose"
 import { SingleTypeComponent } from "@/page/App/components/Actions/ActionPanel/SingleTypeComponent"
 import { TransformerComponent } from "@/page/App/components/Actions/ActionPanel/TransformerComponent"
-import {
-  actionItemContainer,
-  panelContainerStyle,
-} from "@/page/App/components/Actions/ActionPanel/style"
+import { actionItemContainer } from "@/page/App/components/Actions/ActionPanel/style"
 import {
   getCachedAction,
   getSelectedAction,
 } from "@/redux/config/configSelector"
 import { configActions } from "@/redux/config/configSlice"
-import { ActionItem } from "@/redux/currentApp/action/actionState"
-import {
-  AppwriteAction,
-  AppwriteActionMethodsOptions,
-  AppwriteActionMethodsType,
-  AppwriteActionTypes,
-  DocumentOperationsInitial,
-  ListDocumentsInitial,
-} from "@/redux/currentApp/action/appwriteAction"
 import { fetchResourceMeta } from "@/services/resource"
 
 const AppwriteSubComponentMap = {
@@ -33,6 +29,32 @@ const AppwriteSubComponentMap = {
   delete: DocumentSubPanel,
   list: ListDocumentsSubPanel,
 }
+
+export const AppwriteActionMethodsOptions: {
+  label: string
+  value: AppwriteActionMethodsType
+}[] = [
+  {
+    label: "Create a document",
+    value: "create",
+  },
+  {
+    label: "Get a document",
+    value: "get",
+  },
+  {
+    label: "Update a document",
+    value: "update",
+  },
+  {
+    label: "Delete a document",
+    value: "delete",
+  },
+  {
+    label: "List documents",
+    value: "list",
+  },
+]
 
 const AppwritePanel: FC = () => {
   const cachedAction = useSelector(getCachedAction) as ActionItem<
@@ -64,8 +86,8 @@ const AppwritePanel: FC = () => {
           : {
               opts:
                 value === "list"
-                  ? ListDocumentsInitial
-                  : DocumentOperationsInitial,
+                  ? AppwriteListDocumentsInitial
+                  : AppwriteDocumentOperationsInitial,
               method: value,
             }
       dispatch(
@@ -100,26 +122,22 @@ const AppwritePanel: FC = () => {
   const withDataEditor = !["get", "delete"].includes(content.method)
 
   return (
-    <div css={panelContainerStyle}>
-      <ResourceChoose />
-      <div css={actionItemContainer}>
-        <SingleTypeComponent
-          componentType="select"
-          onChange={handleMethodValueChange}
-          value={content.method}
-          options={AppwriteActionMethodsOptions}
-          title={"Method"}
-        />
-        <Component
-          key={content.method}
-          handleValueChange={handleValueChange}
-          withDataEditor={withDataEditor}
-          params={content.opts}
-          collectionIds={collectionIds}
-        />
-        <TransformerComponent />
-      </div>
-      <ActionEventHandler />
+    <div css={actionItemContainer}>
+      <SingleTypeComponent
+        componentType="select"
+        onChange={handleMethodValueChange}
+        value={content.method}
+        options={AppwriteActionMethodsOptions}
+        title={"Method"}
+      />
+      <Component
+        key={content.method}
+        handleValueChange={handleValueChange}
+        withDataEditor={withDataEditor}
+        params={content.opts}
+        collectionIds={collectionIds}
+      />
+      <TransformerComponent />
     </div>
   )
 }

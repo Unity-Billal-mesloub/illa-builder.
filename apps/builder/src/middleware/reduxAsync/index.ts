@@ -1,11 +1,14 @@
-import * as Redux from "@reduxjs/toolkit"
+import { Middleware, isAction } from "@reduxjs/toolkit"
 import { illaSnapshot } from "@/page/App/components/DotPanel/constant/snapshotNew"
-import { getExecutionWidgetLayoutInfo } from "@/redux/currentApp/executionTree/executionSelector"
+import { getClientWidgetLayoutInfo } from "@/redux/currentApp/layoutInfo/layoutInfoSelector"
 import { RootState } from "@/store"
 import { receiveMessage } from "./receiveMessages"
 import { sendMessage } from "./sendMessage"
 
-export const reduxAsync: Redux.Middleware = (store) => (next) => (action) => {
+export const reduxAsync: Middleware = (store) => (next) => (action) => {
+  if (!isAction(action) || !("payload" in action)) {
+    return next(action)
+  }
   const { type } = action
   const typeList = type.split("/")
   const isRemoteAction = typeList[typeList.length - 1] === "remote"
@@ -15,7 +18,7 @@ export const reduxAsync: Redux.Middleware = (store) => (next) => (action) => {
     const resp = next(action) as RootState
     if (typeList[0] === "components") {
       const nextRootState = store.getState()
-      const snapShot = getExecutionWidgetLayoutInfo(nextRootState)
+      const snapShot = getClientWidgetLayoutInfo(nextRootState)
       illaSnapshot.setSnapshot(snapShot)
     }
     return resp

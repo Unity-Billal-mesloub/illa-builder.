@@ -1,4 +1,4 @@
-import { get } from "lodash"
+import { get } from "lodash-es"
 import { FC, useCallback, useMemo } from "react"
 import { useSelector } from "react-redux"
 import { ChartDatasetShape } from "@/page/App/components/InspectPanel/PanelSetters/ChartSetter/chartDatasetsSetter/interface"
@@ -7,8 +7,8 @@ import { ChartDataSourceSetterProps } from "@/page/App/components/InspectPanel/P
 import BaseDynamicSelect from "@/page/App/components/InspectPanel/PanelSetters/SelectSetter/baseDynamicSelect"
 import { publicPaddingStyle } from "@/page/App/components/InspectPanel/style"
 import {
-  getCanvas,
-  searchDsl,
+  getComponentMap,
+  searchComponentFromMap,
 } from "@/redux/currentApp/components/componentsSelector"
 import { getExecutionResult } from "@/redux/currentApp/executionTree/executionSelector"
 import { getExecutionError } from "@/redux/currentApp/executionTree/executionSelector"
@@ -39,8 +39,8 @@ const ChartKeysDynamicSelectSetter: FC<ChartDataSourceSetterProps> = (
 
   const insertValues = useSelector<RootState, Record<string, any>>(
     (rootState) => {
-      const targetComponentNode = searchDsl(
-        getCanvas(rootState),
+      const targetComponentNode = searchComponentFromMap(
+        getComponentMap(rootState),
         widgetDisplayName,
       )
       if (!targetComponentNode) return {}
@@ -119,16 +119,21 @@ const ChartKeysDynamicSelectSetter: FC<ChartDataSourceSetterProps> = (
     [generateNewDatasets, handleUpdateMultiAttrDSL, value],
   )
 
-  const isError = useSelector<RootState, boolean>((state) => {
-    const errors = getExecutionError(state)
-    const thisError = get(errors, `${widgetDisplayName}.${attrName}JS`)
-    return thisError?.length > 0
-  })
+  const executionErrors = useSelector(getExecutionError)
+  const isError = useMemo(() => {
+    return (
+      (executionErrors[`${widgetDisplayName}.${attrName}JS`] ?? [])?.length > 0
+    )
+  }, [attrName, executionErrors, widgetDisplayName])
 
   const isDynamic = useMemo(() => {
-    const dataSourceMode = get(targetComponentProps, "keySelectMode", "select")
+    const dataSourceMode = get(
+      targetComponentProps,
+      `${widgetDisplayName}.${attrName}JS`,
+      "select",
+    )
     return dataSourceMode === "dynamic"
-  }, [targetComponentProps])
+  }, [attrName, targetComponentProps, widgetDisplayName])
 
   const finalValue = useMemo(() => {
     return get(panelConfig, attrName, "")
@@ -137,19 +142,26 @@ const ChartKeysDynamicSelectSetter: FC<ChartDataSourceSetterProps> = (
   const handleClickFxButton = useCallback(() => {
     const isInOption = selectedOptions.some((value) => value === finalValue)
     if (isDynamic) {
-      handleUpdateDsl("keySelectMode", "select")
+      handleUpdateDsl(`${widgetDisplayName}.${attrName}JS`, "select")
       if (!isInOption) {
         handleUpdateDsl(attrName, "")
       } else {
         handleUpdateDsl(attrName, finalValue)
       }
     } else {
-      handleUpdateDsl("keySelectMode", "dynamic")
+      handleUpdateDsl(`${widgetDisplayName}.${attrName}JS`, "dynamic")
       if (isInOption) {
         handleUpdateDsl(attrName, finalValue)
       }
     }
-  }, [selectedOptions, isDynamic, finalValue, handleUpdateDsl, attrName])
+  }, [
+    selectedOptions,
+    isDynamic,
+    finalValue,
+    handleUpdateDsl,
+    widgetDisplayName,
+    attrName,
+  ])
 
   const handleChangeSelect = useCallback(
     (value: string) => {

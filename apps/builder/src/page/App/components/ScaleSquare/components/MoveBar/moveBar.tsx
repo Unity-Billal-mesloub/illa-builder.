@@ -9,7 +9,7 @@ import {
   globalColor,
   illaPrefix,
 } from "@illa-design/react"
-import { ReactComponent as DocIcon } from "@/assets/doc.svg"
+import DocIcon from "@/assets/doc.svg?react"
 import { SCROLL_CONTAINER_PADDING } from "@/page/App/components/DotPanel/constant/canvas"
 import { CollaboratorsList } from "@/page/App/components/ScaleSquare/components/CollaboratorsList"
 import {
@@ -24,8 +24,6 @@ import {
   AVATAR_WIDTH,
   MIN_DISABLE_MARGIN_WIDTH,
 } from "@/redux/currentApp/collaborators/collaboratorsHandlers"
-import { isContainerType } from "@/utils/componentChecker"
-import { FocusManager } from "@/utils/focusManager"
 import { MoveBarProps } from "./interface"
 import {
   applyMoveBarWrapperStyle,
@@ -69,16 +67,8 @@ export const WidgetDoc: FC<WidgetDocProps> = (props) => {
 }
 
 export const MoveBar: FC<MoveBarProps> = (props) => {
-  const {
-    displayName,
-    isError,
-    maxWidth,
-    selected,
-    widgetTop,
-    widgetType,
-    userList,
-    isMouseOver,
-  } = props
+  const { displayName, isError, maxWidth, widgetTop, widgetType, userList } =
+    props
 
   const [currentState, setCurrentState] = useState<string>("right")
   const [containerRef, bounds] = useMeasure()
@@ -115,28 +105,14 @@ export const MoveBar: FC<MoveBarProps> = (props) => {
     bounds.width <=
     (userList.length >= 2 ? MIN_MOVE_BAR_WIDTH : MIN_DISABLE_MARGIN_WIDTH)
 
-  const handleClickOnMoveBar = () => {
-    if (isContainerType(widgetType)) {
-      FocusManager.switchFocus("canvas", {
-        displayName: displayName,
-        type: "component",
-        clickPosition: [],
-      })
-    }
-  }
-
   return (
     <div
-      onClick={handleClickOnMoveBar}
       css={applyMoveBarWrapperStyle(
         maxWidth,
         minWidth,
         isError,
-        selected,
         isLikeProductionMode,
         topPosition,
-        !!userList.length,
-        isMouseOver,
       )}
       id="moveBar"
       ref={containerRef}

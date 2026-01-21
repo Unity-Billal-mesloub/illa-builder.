@@ -1,4 +1,5 @@
-import { ReactComponent as RadioIcon } from "@/assets/radius-icon.svg"
+import AvatarPaddingIcon from "@/assets/chat/avatarPadding.svg?react"
+import RadioIcon from "@/assets/radius-icon.svg?react"
 import i18n from "@/i18n/config"
 import { PanelConfig } from "@/page/App/components/InspectPanel/interface"
 import { VALIDATION_TYPES } from "@/utils/validationFactory"
@@ -9,7 +10,7 @@ const baseWidgetName = "chat"
 export const CHAT_PANEL_CONFIG: PanelConfig[] = [
   {
     id: `${baseWidgetName}-data`,
-    groupName: i18n.t("editor.inspect.setter_group.MESSAGE"), //TODO,
+    groupName: i18n.t("editor.inspect.setter_group.MESSAGE"),
     children: [
       {
         id: `${baseWidgetName}-data-source`,
@@ -295,6 +296,15 @@ export const CHAT_PANEL_CONFIG: PanelConfig[] = [
             setterType: "SHADOW_SELECT_SETTER",
             useCustomLayout: true,
             defaultValue: "small",
+          },
+          {
+            id: `${baseWidgetName}-style-avatar-padding`,
+            labelName: i18n.t("editor.inspect.setter_group.padding"),
+            attrName: "avatarPadding",
+            icon: <AvatarPaddingIcon />,
+            setterType: "MEASURE_CHECK_INPUT_SETTER",
+            useCustomLayout: true,
+            defaultValue: "32px",
           },
         ],
       },

@@ -1,5 +1,6 @@
+import { PADDING_MODE } from "@illa-public/public-types"
 import { v4 } from "uuid"
-import { ReactComponent as FormWidgetIcon } from "@/assets/widgetCover/form.svg"
+import FormWidgetIcon from "@/assets/widgetCover/form.svg?react"
 import i18n from "@/i18n/config"
 import { BasicContainerConfig } from "@/widgetLibrary/BasicContainer/BasicContainer"
 import { TEXT_WIDGET_CONFIG } from "@/widgetLibrary/TextWidget"
@@ -70,6 +71,10 @@ export const FORM_WIDGET_CONFIG: WidgetConfig = {
     shadow: "small",
     headerHeight: 11,
     footerHeight: 7,
+    padding: {
+      mode: PADDING_MODE.ALL,
+      size: "4",
+    },
   },
 }
 
@@ -97,4 +102,6 @@ export const FORM_CAN_BIND_WIDGET_TYPE = new Map([
   ["TIME_RANGE_WIDGET", true],
   ["SWITCH_GROUP_WIDGET", true],
   ["RECORDING_WIDGET", true],
+  ["EDITABLE_TEXT_WIDGET", true],
+  ["SIGNATURE_WIDGET", true],
 ])

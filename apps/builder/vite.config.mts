@@ -4,24 +4,31 @@ import basicSsl from "@vitejs/plugin-basic-ssl"
 import react from "@vitejs/plugin-react-swc"
 import { writeFileSync } from "fs"
 import { resolve } from "path"
+import copy from "rollup-plugin-copy"
 import { visualizer } from "rollup-plugin-visualizer"
-import { defineConfig, loadEnv } from "vite"
+import { PluginOption, defineConfig, loadEnv } from "vite"
 import checker from "vite-plugin-checker"
 import svgr from "vite-plugin-svgr"
 import pkg from "./package.json"
+
+const I18N_SOURCE_PATH = resolve(
+  __dirname,
+  "../../packages/illa-public-component",
+  "locales/*.json",
+)
+const I18N_TARGET_PATH = resolve(__dirname, "src/i18n/locale")
 
 const getUsedEnv = (env: Record<string, string>) => {
   const usedEnv: Record<string, string> = {}
   Object.keys(env).forEach((key) => {
     if (key.startsWith("ILLA_")) {
       let value = env[key]
-      if (key === "ILLA_APP_VERSION") {
-        value = pkg.version
-      }
       usedEnv[`import.meta.env.${key}`] = JSON.stringify(value)
       usedEnv[`process.env.${key}`] = JSON.stringify(value)
     }
   })
+  usedEnv[`import.meta.env.ILLA_APP_VERSION`] = JSON.stringify(pkg.version)
+  usedEnv[`process.env.ILLA_APP_VERSION`] = JSON.stringify(pkg.version)
   return usedEnv
 }
 
@@ -30,10 +37,17 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "")
 
   const useHttps = env.ILLA_USE_HTTPS === "true"
-  const isBuildSelfHost =
-    env.ILLA_INSTANCE_ID === "SELF_HOST_CLOUD" && command === "build"
-  const BASIC_PLUGIN = [
-    mdx(),
+  const BASIC_PLUGIN: PluginOption[] = [
+    copy({
+      targets: [
+        {
+          src: [I18N_SOURCE_PATH, "!**/package.json"],
+          dest: I18N_TARGET_PATH,
+        },
+      ],
+      hook: "buildStart",
+    }) as unknown as PluginOption,
+    mdx() as unknown as PluginOption,
     react({
       jsxImportSource: "@emotion/react",
     }),
@@ -49,7 +63,7 @@ export default defineConfig(({ command, mode }) => {
     }),
     visualizer({
       template: "network",
-    }),
+    }) as unknown as PluginOption,
   ]
 
   const plugin = BASIC_PLUGIN
@@ -58,23 +72,19 @@ export default defineConfig(({ command, mode }) => {
   if (command === "serve" && useHttps) {
     plugin.push(basicSsl())
   } else {
-    if (env.ILLA_INSTANCE_ID === "CLOUD" && env.ILLA_SENTRY_AUTH_TOKEN) {
+    if (
+      env.ILLA_INSTANCE_ID === "CLOUD" &&
+      env.ILLA_SENTRY_AUTH_TOKEN &&
+      env.ILLA_APP_ENV === "production"
+    ) {
       plugin.push(
         sentryVitePlugin({
-          org: "sentry",
-          project: "illa-builder",
-          url: "http://sentry.illasoft.com/",
           authToken: env.ILLA_SENTRY_AUTH_TOKEN,
+          org: "illa-cloud",
+          project: "illa-builder",
           release: {
             name: `illa-builder@${version}`,
-            uploadLegacySourcemaps: {
-              urlPrefix: "~/assets",
-              paths: ["./dist/assets"],
-              ignore: ["node_modules"],
-            },
-            deploy: {
-              env: env.ILLA_APP_ENV,
-            },
+            dist: env.ILLA_APP_ENV,
           },
         }),
       )
@@ -83,7 +93,7 @@ export default defineConfig(({ command, mode }) => {
   writeFileSync("./public/appInfo.json", `{"version":${version}}`)
 
   return {
-    base: isBuildSelfHost ? "/build" : "/",
+    base: env.ILLA_BASE_PATH ?? "/",
     plugins: plugin,
     esbuild: {
       logOverride: { "this-is-undefined-in-esm": "silent" },
@@ -126,14 +136,13 @@ export default defineConfig(({ command, mode }) => {
               "@codemirror/view",
               "@uiw/codemirror-theme-github",
             ],
-            "lodash-lib": ["lodash"],
+            "lodash-lib": ["lodash-es"],
           },
         },
       },
     },
     server: {
       port: 3000,
-      https: useHttps,
     },
     preview: {
       port: 4173,

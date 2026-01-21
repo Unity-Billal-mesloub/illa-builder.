@@ -1,8 +1,8 @@
-import { clamp } from "lodash"
+import { clamp } from "lodash-es"
 import { XYCoord } from "react-dnd"
 import { DRAG_EFFECT } from "@/page/App/components/ScaleSquare/components/DragContainer/interface"
 import { DEFAULT_MIN_COLUMN } from "@/page/App/components/ScaleSquare/constant/widget"
-import { WidgetLayoutInfo } from "@/redux/currentApp/executionTree/executionState"
+import { WidgetLayoutInfo } from "@/redux/currentApp/layoutInfo/layoutInfoState"
 import { DragCollectedProps } from "../components/DragPreview/interface"
 import { DEFAULT_BODY_COLUMNS_NUMBER, UNIT_HEIGHT } from "../constant/canvas"
 import { getScrollBarContainerByDisplayName } from "../context/scrollBarContext"
@@ -287,12 +287,6 @@ const getDragResult = (
   }
 }
 
-interface ContainerInfo {
-  containerTop: number
-  containerLeft: number
-  containerScrollTop: number
-}
-
 export const clamWidgetShape = (
   dragPreview: NodeShape,
   columnNumber: number,
@@ -363,7 +357,6 @@ export const getDragPreview = (
   parentNodeDisplayName: string,
   unitW: number,
   dragCollectedProps: DragCollectedProps,
-  containerInfo: ContainerInfo,
   columnNumber: number,
 ) => {
   const { initialClientOffset, initialSourceClientOffset, clientOffset, item } =
@@ -371,7 +364,18 @@ export const getDragPreview = (
 
   if (!item) return null
 
-  const { containerLeft } = containerInfo
+  const outerContainerElement = document.querySelector(
+    `[data-outer-canvas-container="${parentNodeDisplayName}"]`,
+  ) as HTMLDivElement
+
+  const outerContainerStyle = window.getComputedStyle(outerContainerElement!)
+  const outerContainerLeft = parseFloat(
+    outerContainerStyle.getPropertyValue("padding-left"),
+  )
+
+  const containerLeft =
+    outerContainerElement!.getBoundingClientRect().left + outerContainerLeft
+
   const containerTop = getContainerTop(parentNodeDisplayName)
   const {
     draggedComponents,
@@ -492,6 +496,15 @@ export const getDragPreview = (
       result.w,
       result.previewH,
     )
+
+    const clamWidgetResult = clamWidgetShape(
+      {
+        ...result,
+        h: result.previewH,
+      },
+      columnNumber,
+      draggedComponents.length > 1,
+    )
     if (
       draggedComponents.length > 1 &&
       columnNumber !== columnNumberWhenDragged &&
@@ -500,39 +513,22 @@ export const getDragPreview = (
       item.dropResult = {
         shape: undefined,
         canDrop: false,
+        columnNumberWhenDrag: columnNumberWhenDragged,
+        columnNumberWhenDrop: columnNumber,
       }
       return {
-        shape: clamWidgetShape(
-          {
-            ...result,
-            h: result.previewH,
-          },
-          columnNumber,
-          draggedComponents.length > 1,
-        ),
+        shape: clamWidgetResult,
         canDrop: false,
       }
     }
     item.dropResult = {
-      shape: clamWidgetShape(
-        {
-          ...result,
-          h: result.previewH,
-        },
-        columnNumber,
-        draggedComponents.length > 1,
-      ),
+      shape: clamWidgetResult,
       canDrop: true,
+      columnNumberWhenDrag: columnNumberWhenDragged,
+      columnNumberWhenDrop: columnNumber,
     }
     return {
-      shape: clamWidgetShape(
-        {
-          ...result,
-          h: result.previewH,
-        },
-        columnNumber,
-        draggedComponents.length > 1,
-      ),
+      shape: clamWidgetResult,
       canDrop: true,
     }
   } else {

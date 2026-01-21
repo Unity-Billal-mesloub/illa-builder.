@@ -1,11 +1,13 @@
 import { FC, memo, useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import { useDispatch, useSelector } from "react-redux"
-import { Divider } from "@illa-design/react"
+import { Alert, Divider } from "@illa-design/react"
 import { PanelHeader } from "@/page/App/components/InspectPanel/components/Header"
 import { SelectedProvider } from "@/page/App/components/InspectPanel/context/selectedContext"
 import { panelBuilder } from "@/page/App/components/InspectPanel/utils/panelBuilder"
 import { getComponentNodeBySingleSelected } from "@/redux/currentApp/components/componentsSelector"
 import { componentsActions } from "@/redux/currentApp/components/componentsSlice"
+import { executionActions } from "@/redux/currentApp/executionTree/executionSlice"
 import { isObject } from "@/utils/typeHelper"
 import FieldFactory from "../FieldFactory"
 import {
@@ -15,6 +17,7 @@ import {
 
 const SingleSelectedPanel: FC = () => {
   const dispatch = useDispatch()
+  const { t } = useTranslation()
   const singleSelectedComponentNode = useSelector(
     getComponentNodeBySingleSelected,
   )
@@ -66,6 +69,19 @@ const SingleSelectedPanel: FC = () => {
     [dispatch],
   )
 
+  const handleUpdateExecutionResult = useCallback(
+    (displayName: string, updateSlice: Record<string, unknown>) => {
+      if (!isObject(updateSlice)) return
+      dispatch(
+        executionActions.updateExecutionByDisplayNameReducer({
+          displayName,
+          value: updateSlice,
+        }),
+      )
+    },
+    [dispatch],
+  )
+
   const builderPanelConfig = panelBuilder(widgetType)
 
   return (
@@ -78,11 +94,19 @@ const SingleSelectedPanel: FC = () => {
         handleUpdateDsl={handleUpdateDsl}
         handleUpdateMultiAttrDSL={handleUpdateMultiAttrDSL}
         handleUpdateOtherMultiAttrDSL={handleUpdateOtherMultiAttrDSL}
+        handleUpdateExecutionResult={handleUpdateExecutionResult}
         widgetOrAction="WIDGET"
       >
         <div css={singleSelectedPanelWrapperStyle}>
           <PanelHeader />
           <Divider />
+          {widgetType === "TABLE_WIDGET" && (
+            <Alert
+              type="warning"
+              title={t("editor.inspect.setter_tips.table_update_title")}
+              content={t("editor.inspect.setter_tips.table_update_content")}
+            />
+          )}
           <div css={singleSelectedPanelSetterWrapperStyle}>
             <FieldFactory
               panelConfig={builderPanelConfig}
